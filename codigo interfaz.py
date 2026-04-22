@@ -3,6 +3,8 @@ from tkinter import ttk, messagebox
 import sqlite3
 import os
 
+from menu_usuario import crear_menu_usuario
+
 
 class SistemaGestion:
     def __init__(self, root):
@@ -39,7 +41,8 @@ class SistemaGestion:
             return []
 
     def limpiar_pantalla(self):
-        for widget in self.root.winfo_children(): widget.destroy()
+        for widget in self.root.winfo_children():
+            widget.destroy()
 
     def pantalla_login(self):
         self.limpiar_pantalla()
@@ -50,10 +53,8 @@ class SistemaGestion:
                               highlightbackground="#dee2e6")
         login_card.place(relx=0.5, rely=0.5, anchor="center")
 
-        tk.Label(login_card, text="🔐 INICIO DE SESIÓN", font=("Segoe UI", 18, "bold"), bg="white", fg="#2c3e50").pack(
-            pady=(0, 20))
+        tk.Label(login_card, text="🔐 INICIO DE SESIÓN", font=("Segoe UI", 18, "bold"), bg="white", fg="#2c3e50").pack(pady=(0, 20))
 
-        # OBTENER USUARIOS DE LA BASE DE DATOS (PARA QUE SEA DINÁMICO)
         usuarios_db = self.obtener_lista_db("SELECT nombre_completo FROM usuarios")
         lista_nombres = [u[0] for u in usuarios_db]
 
@@ -66,7 +67,6 @@ class SistemaGestion:
         pass_e = tk.Entry(login_card, font=("Segoe UI", 11), width=30, bd=1, relief="solid", show="*")
         pass_e.pack(pady=(0, 25))
 
-        # FUNCIÓN DE LOGGING CORREGIDA
         def ejecutar_login():
             user_sel = user_c.get()
             pass_ingresada = pass_e.get()
@@ -89,18 +89,25 @@ class SistemaGestion:
             else:
                 messagebox.showerror("Error", "Contraseña incorrecta")
 
-        tk.Button(login_card, text="ENTRAR", bg="#1abc9c", fg="white", font=("Segoe UI", 10, "bold"),
-                  bd=0, width=25, height=2, command=ejecutar_login).pack()
+        tk.Button(login_card, text="ENTRAR", bg="#1abc9c", fg="white",
+                  font=("Segoe UI", 10, "bold"), bd=0, width=25, height=2,
+                  command=ejecutar_login).pack()
 
     def menu_principal(self):
         self.limpiar_pantalla()
+        
+
         header = tk.Frame(self.root, bg="#34495e", height=70)
         header.pack(fill="x")
-        tk.Label(header, text="ESPACIO CREATIVO 🖥️", fg="#ecf0f1", bg="#34495e", font=("Segoe UI", 16, "bold")).pack(
-            side="left", padx=30, pady=20)
+
+        tk.Label(header, text="ESPACIO CREATIVO 🖥️",
+                 fg="#ecf0f1", bg="#34495e",
+                 font=("Segoe UI", 16, "bold")).pack(side="left", padx=30, pady=20)
 
         info_user = f"👤 {self.usuario_actual} | 🛠️ {self.rol_actual}"
-        tk.Label(header, text=info_user, fg="#bdc3c7", bg="#34495e", font=("Segoe UI", 10)).pack(side="right", padx=30)
+
+        # 🔥 AQUÍ VA TU MENÚ
+        crear_menu_usuario(self, header, info_user)
 
         container = tk.Frame(self.root, bg="#f4f7f6")
         container.pack(expand=True, fill="both", padx=50, pady=50)
@@ -114,97 +121,89 @@ class SistemaGestion:
         col_count = 0
         for texto, color, icono, cmd, permiso in modulos:
             if permiso == "Ambos" or self.rol_actual == "Programador":
-                card = tk.Frame(container, bg="white", padx=30, pady=30, highlightbackground="#dee2e6",
-                                highlightthickness=1)
+                card = tk.Frame(container, bg="white", padx=30, pady=30,
+                                highlightbackground="#dee2e6", highlightthickness=1)
                 card.grid(row=0, column=col_count, padx=25)
-                tk.Label(card, text=icono, font=("Segoe UI", 40), bg="white", fg=color).pack()
-                tk.Label(card, text=texto.upper(), font=("Segoe UI", 11, "bold"), bg="white", fg="#2c3e50").pack(
-                    pady=15)
-                tk.Button(card, text="ACCEDER", bg=color, fg="white", font=("Segoe UI", 9, "bold"), bd=0, width=18,
-                          height=2, command=cmd).pack()
+
+                tk.Label(card, text=icono, font=("Segoe UI", 40),
+                         bg="white", fg=color).pack()
+
+                tk.Label(card, text=texto.upper(),
+                         font=("Segoe UI", 11, "bold"),
+                         bg="white", fg="#2c3e50").pack(pady=15)
+
+                tk.Button(card, text="ACCEDER", bg=color, fg="white",
+                          font=("Segoe UI", 9, "bold"),
+                          bd=0, width=18, height=2,
+                          command=cmd).pack()
+
                 col_count += 1
 
-        tk.Button(self.root, text="Cerrar Sesión", command=self.pantalla_login, bd=0, fg="#e74c3c", bg="#f4f7f6",
-                  font=("Segoe UI", 9, "underline")).pack(side="bottom", pady=20)
-
-    # --- LAS VENTANAS SIGUEN IGUAL (CLIENTES, PROYECTOS, PAGOS) ---
+    # --- RESTO IGUAL ---
     def ventana_clientes(self):
-        v = tk.Toplevel(self.root);
-        v.title("👥 Clientes");
-        v.geometry("400x500");
+        v = tk.Toplevel(self.root)
+        v.title("👥 Clientes")
+        v.geometry("400x500")
         v.configure(bg="white")
-        tk.Label(v, text="NUEVO CLIENTE", font=("Segoe UI", 14, "bold"), bg="white", fg="#3498db").pack(pady=20)
-        f = tk.Frame(v, bg="white", padx=30);
+
+        tk.Label(v, text="NUEVO CLIENTE", font=("Segoe UI", 14, "bold"),
+                 bg="white", fg="#3498db").pack(pady=20)
+
+        f = tk.Frame(v, bg="white", padx=30)
         f.pack(fill="both")
+
         tk.Label(f, text="👤 Nombre Completo:", bg="white").pack(anchor="w")
-        nom_e = tk.Entry(f, relief="solid");
+        nom_e = tk.Entry(f)
         nom_e.pack(fill="x", pady=5)
+
         tk.Label(f, text="📞 Teléfono:", bg="white").pack(anchor="w")
-        tel_e = tk.Entry(f, relief="solid");
+        tel_e = tk.Entry(f)
         tel_e.pack(fill="x", pady=5)
+
         tk.Label(f, text="✉️ Correo:", bg="white").pack(anchor="w")
-        cor_e = tk.Entry(f, relief="solid");
+        cor_e = tk.Entry(f)
         cor_e.pack(fill="x", pady=5)
 
         def guardar():
-            if not nom_e.get(): return
-            try:
-                conn = sqlite3.connect(self.ruta_db)
-                c = conn.cursor()
-                c.execute("INSERT INTO clientes (nombre, telefono, correo) VALUES (?,?,?)",
-                          (nom_e.get(), tel_e.get(), cor_e.get()))
-                conn.commit();
-                conn.close()
-                messagebox.showinfo("Éxito", "Guardado");
-                v.destroy()
-            except Exception as e:
-                messagebox.showerror("Error", str(e))
+            if not nom_e.get():
+                return
+            conn = sqlite3.connect(self.ruta_db)
+            c = conn.cursor()
+            c.execute("INSERT INTO clientes (nombre, telefono, correo) VALUES (?,?,?)",
+                      (nom_e.get(), tel_e.get(), cor_e.get()))
+            conn.commit()
+            conn.close()
+            messagebox.showinfo("Éxito", "Guardado")
+            v.destroy()
 
-        tk.Button(f, text="Guardar Cliente", bg="#27ae60", fg="white", height=2, command=guardar).pack(fill="x",
-                                                                                                       pady=20)
+        tk.Button(f, text="Guardar Cliente", bg="#27ae60", fg="white",
+                  command=guardar).pack(pady=20)
 
-    def ventana_proyectos(self):
-        v = tk.Toplevel(self.root);
-        v.title("⚙️ Proyectos");
-        v.geometry("400x600");
-        v.configure(bg="white")
-        tk.Label(v, text="NUEVO PROYECTO", font=("Segoe UI", 14, "bold"), bg="white", fg="#2ecc71").pack(pady=20)
-        f = tk.Frame(v, bg="white", padx=30);
-        f.pack(fill="both")
-        clientes_db = self.obtener_lista_db("SELECT id_cliente, nombre FROM clientes")
-        dict_clientes = {nombre: id_c for id_c, nombre in clientes_db}
-        tk.Label(f, text="👥 Cliente:", bg="white").pack(anchor="w")
-        cli_c = ttk.Combobox(f, values=list(dict_clientes.keys()), state="readonly");
-        cli_c.pack(fill="x", pady=5)
-        tk.Label(f, text="🎬 Nombre:", bg="white").pack(anchor="w")
-        nom_e = tk.Entry(f, relief="solid");
-        nom_e.pack(fill="x", pady=5)
-        tk.Label(f, text="📅 Inicio:", bg="white").pack(anchor="w")
-        f_i = tk.Entry(f, relief="solid");
-        f_i.pack(fill="x", pady=5)
-        tk.Label(f, text="🎁 Fin:", bg="white").pack(anchor="w")
-        f_e = tk.Entry(f, relief="solid");
-        f_e.pack(fill="x", pady=5)
-        tk.Label(f, text="🚥 Estado:", bg="white").pack(anchor="w")
-        est_c = ttk.Combobox(f, values=["Pendiente", "En Proceso", "Finalizado"], state="readonly");
-        est_c.pack(fill="x", pady=5)
-
-        def guardar():
-            if not nom_e.get() or not cli_c.get(): return
-            try:
-                conn = sqlite3.connect(self.ruta_db)
-                c = conn.cursor()
-                c.execute(
-                    "INSERT INTO proyectos (id_cliente, nombre, fecha_inicio, fecha_fin, estado) VALUES (?,?,?,?,?)",
-                    (dict_clientes[cli_c.get()], nom_e.get(), f_i.get(), f_e.get(), est_c.get()))
-                conn.commit();
-                conn.close()
-                messagebox.showinfo("Éxito", "Creado");
-                v.destroy()
-            except Exception as e:
-                messagebox.showerror("Error", str(e))
-
-        tk.Button(f, text="Crear Proyecto", bg="#27ae60", fg="white", height=2, command=guardar).pack(fill="x", pady=20)
+def ventana_proyectos(self):
+    v = tk.Toplevel(self.root);
+    v.title("⚙️ Proyectos");
+    v.geometry("400x600");
+    v.configure(bg="white")
+    tk.Label(v, text="NUEVO PROYECTO", font=("Segoe UI", 14, "bold"), bg="white", fg="#2ecc71").pack(pady=20)
+    f = tk.Frame(v, bg="white", padx=30);
+    f.pack(fill="both")
+    clientes_db = self.obtener_lista_db("SELECT id_cliente, nombre FROM clientes")
+    dict_clientes = {nombre: id_c for id_c, nombre in clientes_db}
+    tk.Label(f, text="👥 Cliente:", bg="white").pack(anchor="w")
+    cli_c = ttk.Combobox(f, values=list(dict_clientes.keys()), state="readonly");
+    cli_c.pack(fill="x", pady=5)
+    tk.Label(f, text="🎬 Nombre:", bg="white").pack(anchor="w")
+    nom_e = tk.Entry(f, relief="solid");
+    nom_e.pack(fill="x", pady=5)
+    tk.Label(f, text="📅 Inicio:", bg="white").pack(anchor="w")
+    f_i = tk.Entry(f, relief="solid");
+    f_i.pack(fill="x", pady=5)
+    tk.Label(f, text="🎁 Fin:", bg="white").pack(anchor="w")
+    f_e = tk.Entry(f, relief="solid");
+    f_e.pack(fill="x", pady=5)
+    tk.Label(f, text="🚥 Estado:", bg="white").pack(anchor="w")
+    est_c = ttk.Combobox(f, values=["Pendiente", "En Proceso", "Finalizado"], state="readonly");
+    est_c.pack(fill="x", pady=5)
 
     def ventana_pagos(self):
         v = tk.Toplevel(self.root);
