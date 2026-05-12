@@ -1,5 +1,5 @@
 import tkinter as tk
-from tkinter import ttk, messagebox, filedialog
+from tkinter import ttk, messagebox, filedialog, Menu
 import sqlite3
 import os
 import uuid
@@ -12,69 +12,69 @@ class SistemaGestion:
     def __init__(self, root):
         self.root = root
         self.root.title("Espacio Creativo v3.0 - Gestión Pro")
-        self.root.geometry("1100x850")
-        self.root.configure(bg="#f4f7f6")
+        self.root.geometry("1200x850")
 
-        # Ruta de la base de datos
+        self.modo_oscuro = False
+        self.color_fondo = "#f9c784"
+        self.color_header = "#f39c12"
+        self.color_card = "white"
+        self.color_texto = "#2c3e50"
+
+
         ruta_carpeta = os.path.dirname(os.path.abspath(__file__))
         self.ruta_db = os.path.join(ruta_carpeta, "gestion_proyectos.db")
 
-        # Inicializar tablas necesarias
-        self.inicializar_db_formal()
-        self.configurar_estilos()
+        self.ruta_logo = os.path.join(
+            ruta_carpeta,
+            "NARANJA - VERTICAL-Photoroom.png"
+        )
 
-        self.usuario_actual = None
-        self.rol_actual = None
+        self.usuario_actual = ""
+        self.rol_actual = ""
 
-        # Variables de publicidad
         self.img_original = None
         self.img_tk = None
         self.path_actual = ""
 
+        self.inicializar_db_formal()
+        self.configurar_estilos()
         self.pantalla_login()
 
     def inicializar_db_formal(self):
         conn = sqlite3.connect(self.ruta_db)
         c = conn.cursor()
 
-        c.execute('''CREATE TABLE IF NOT EXISTS usuarios 
-                     (id_usuario INTEGER PRIMARY KEY AUTOINCREMENT, 
-                      nombre_completo TEXT, usuario_login TEXT UNIQUE, 
-                      password TEXT, rol TEXT)''')
+        c.execute("""
+        CREATE TABLE IF NOT EXISTS usuarios (
+            id_usuario INTEGER PRIMARY KEY AUTOINCREMENT,
+            nombre_completo TEXT,
+            usuario_login TEXT UNIQUE,
+            password TEXT,
+            rol TEXT
+        )
+        """)
 
-        c.execute('''CREATE TABLE IF NOT EXISTS clientes 
-                     (id_cliente INTEGER PRIMARY KEY AUTOINCREMENT, 
-                      nombre_empresa TEXT UNIQUE NOT NULL, 
-                      telefono_referido TEXT, 
-                      correo TEXT, 
-                      direccion_empresa TEXT,
-                      uuid_empresa TEXT UNIQUE)''')
+        c.execute("""
+        CREATE TABLE IF NOT EXISTS mensajes (
+            id_mensaje INTEGER PRIMARY KEY AUTOINCREMENT,
+            remitente TEXT,
+            contenido TEXT,
+            fecha_hora TEXT
+        )
+        """)
 
-        c.execute('''CREATE TABLE IF NOT EXISTS publicidad 
-                     (id_pub INTEGER PRIMARY KEY AUTOINCREMENT, 
-                      uuid_empresa TEXT, 
-                      nombre_archivo TEXT, 
-                      estado TEXT, 
-                      fecha TEXT)''')
-
-        c.execute('''CREATE TABLE IF NOT EXISTS proyectos 
-                     (id_proyecto INTEGER PRIMARY KEY AUTOINCREMENT,
-                      id_cliente INTEGER,
-                      nombre TEXT NOT NULL,
-                      fecha_inicio TEXT,
-                      estado TEXT,
-                      FOREIGN KEY (id_cliente) REFERENCES clientes (id_cliente))''')
-
-        c.execute('''CREATE TABLE IF NOT EXISTS mensajes 
-                     (id_mensaje INTEGER PRIMARY KEY AUTOINCREMENT, 
-                      remitente TEXT, 
-                      contenido TEXT, 
-                      fecha_hora TEXT)''')
-
-        c.execute("SELECT count(*) FROM usuarios")
+        c.execute("SELECT COUNT(*) FROM usuarios")
         if c.fetchone()[0] == 0:
-            c.execute("INSERT INTO usuarios (nombre_completo, usuario_login, password, rol) VALUES (?,?,?,?)",
-                      ('Alejandro Coxaj', 'alejandro', 'prog123', 'Programador'))
+            c.execute("""
+            INSERT INTO usuarios
+            (nombre_completo, usuario_login, password, rol)
+            VALUES (?, ?, ?, ?)
+            """, (
+                "Alejandro Coxaj",
+                "alejandro",
+                "prog123",
+                "Programador"
+            ))
 
         conn.commit()
         conn.close()
@@ -82,8 +82,12 @@ class SistemaGestion:
     def configurar_estilos(self):
         style = ttk.Style()
         style.theme_use("clam")
-        self.root.option_add("*Font", "SegoeUI 10")
-        style.configure("Treeview", rowheight=25)
+        style.configure(
+            "Treeview",
+            rowheight=28,
+            font=("Segoe UI", 10)
+        )
+
 
     def obtener_lista_db(self, consulta, params=()):
         try:
@@ -93,96 +97,343 @@ class SistemaGestion:
             datos = c.fetchall()
             conn.close()
             return datos
-        except:
+        except Exception:
             return []
 
     def limpiar_pantalla(self):
-        for widget in self.root.winfo_children(): widget.destroy()
+        for widget in self.root.winfo_children():
+            widget.destroy()
+
+    def obtener_usuarios(self):
+        datos = self.obtener_lista_db(
+            "SELECT usuario_login FROM usuarios"
+        )
+        return [d[0] for d in datos]
+
+
+    def cambiar_tema(self):
+        self.modo_oscuro = not self.modo_oscuro
+
+        if self.modo_oscuro:
+            self.color_fondo = "#1e1e1e"
+            self.color_header = "#111111"
+            self.color_card = "#2c2c2c"
+            self.color_texto = "white"
+        else:
+            self.color_fondo = "#f9c784"
+            self.color_header = "#f39c12"
+            self.color_card = "white"
+            self.color_texto = "#2c3e50"
+
+        self.menu_principal()
+
+
+    def mostrar_soporte(self):
+        messagebox.showinfo(
+            "Soporte Técnico",
+            "ESPACIO CREATIVO\n\n"
+            "Correo: soporte@espaciocreativo.com\n"
+            "Tel: +502 5555-5555"
+        )
+
 
     def pantalla_login(self):
         self.limpiar_pantalla()
-        bg_frame = tk.Frame(self.root, bg="#2c3e50")
-        bg_frame.place(relwidth=1, relheight=1)
 
-        login_card = tk.Frame(self.root, bg="white", padx=40, pady=40, highlightthickness=1,
-                              highlightbackground="#dee2e6")
-        login_card.place(relx=0.5, rely=0.5, anchor="center")
+        self.root.state("normal")
+        self.root.geometry("1200x850")
+        self.root.configure(bg=self.color_fondo)
 
-        tk.Label(login_card, text="🔐 INICIO DE SESIÓN", font=("Segoe UI", 18, "bold"), bg="white", fg="#2c3e50").pack(
-            pady=(0, 20))
+        card = tk.Frame(
+            self.root,
+            bg=self.color_card,
+            padx=35,
+            pady=25,
+            highlightbackground="#f4a261",
+            highlightthickness=2
+        )
+        card.place(relx=0.5, rely=0.5, anchor="center")
 
-        usuarios_db = self.obtener_lista_db("SELECT usuario_login FROM usuarios")
-        lista_nombres = [u[0] for u in usuarios_db]
 
-        tk.Label(login_card, text="Usuario:", bg="white", fg="#7f8c8d").pack(anchor="w")
-        user_c = ttk.Combobox(login_card, values=lista_nombres, state="readonly", width=28)
-        if lista_nombres: user_c.current(0)
-        user_c.pack(pady=(0, 15))
+        try:
+            if os.path.exists(self.ruta_logo):
+                logo = Image.open(self.ruta_logo)
+                logo = logo.resize((170, 170))
+                self.logo_login = ImageTk.PhotoImage(logo)
 
-        tk.Label(login_card, text="Contraseña:", bg="white", fg="#7f8c8d").pack(anchor="w")
-        pass_e = tk.Entry(login_card, font=("Segoe UI", 11), width=30, bd=1, relief="solid", show="*")
-        pass_e.pack(pady=(0, 25))
+                tk.Label(
+                    card,
+                    image=self.logo_login,
+                    bg=self.color_card
+                ).pack()
+        except Exception as e:
+            print("ERROR LOGO:", e)
 
-        def ejecutar_login():
+        tk.Label(
+            card,
+            text="Iniciar Sesión",
+            font=("Segoe UI", 18, "bold"),
+            fg="#f39c12",
+            bg=self.color_card
+        ).pack(pady=(5, 20))
+
+
+        tk.Label(
+            card,
+            text="Usuario",
+            bg=self.color_card,
+            fg=self.color_texto
+        ).pack(anchor="w")
+
+        usuarios = self.obtener_usuarios()
+
+        self.combo_user = ttk.Combobox(
+            card,
+            values=usuarios,
+            state="readonly",
+            width=28
+        )
+
+        if usuarios:
+            self.combo_user.current(0)
+
+        self.combo_user.pack(pady=(6, 15), ipady=4)
+
+        tk.Label(
+            card,
+            text="Contraseña",
+            bg=self.color_card,
+            fg=self.color_texto
+        ).pack(anchor="w")
+
+        self.entry_pass = tk.Entry(
+            card,
+            show="*",
+            width=30
+        )
+        self.entry_pass.pack(pady=(6, 18), ipady=5)
+        self.entry_pass.focus()
+
+        def login():
+            usuario = self.combo_user.get()
+            password = self.entry_pass.get()
+
             res = self.obtener_lista_db(
-                "SELECT nombre_completo, rol FROM usuarios WHERE usuario_login=? AND password=?",
-                (user_c.get(), pass_e.get()))
+                """
+                SELECT nombre_completo, rol
+                FROM usuarios
+                WHERE usuario_login=? AND password=?
+                """,
+                (usuario, password)
+            )
+
             if res:
                 self.usuario_actual, self.rol_actual = res[0]
                 self.menu_principal()
             else:
-                messagebox.showerror("Error", "Usuario o contraseña incorrecta")
+                messagebox.showerror(
+                    "Error",
+                    "Usuario o contraseña incorrecta"
+                )
 
-        tk.Button(login_card, text="ENTRAR", bg="#1abc9c", fg="white", font=("Segoe UI", 10, "bold"), bd=0, width=25,
-                  height=2, command=ejecutar_login).pack()
+        self.entry_pass.bind(
+            "<Return>",
+            lambda e: login()
+        )
+
+        tk.Button(
+            card,
+            text="ENTRAR",
+            bg="#f39c12",
+            fg="white",
+            font=("Segoe UI", 10, "bold"),
+            bd=0,
+            width=22,
+            command=login
+        ).pack(pady=8)
+
 
     def menu_principal(self):
         self.limpiar_pantalla()
-        header = tk.Frame(self.root, bg="#34495e", height=70)
+
+        try:
+            self.root.state("zoomed")
+        except:
+            self.root.attributes("-zoomed", True)
+
+        self.root.configure(bg=self.color_fondo)
+
+        header = tk.Frame(
+            self.root,
+            bg=self.color_header,
+            height=120
+        )
         header.pack(fill="x")
+        header.pack_propagate(False)
 
-        tk.Label(header, text="ESPACIO CREATIVO 🖥️", fg="#ecf0f1", bg="#34495e", font=("Segoe UI", 16, "bold")).pack(
-            side="left", padx=30, pady=20)
+        try:
+            if os.path.exists(self.ruta_logo):
+                logo = Image.open(self.ruta_logo)
+                logo = logo.resize((90, 90))
+                self.logo_menu = ImageTk.PhotoImage(logo)
 
-        btn_chat = tk.Button(header, text="📬 Mensajes", bg="#e74c3c", fg="white", font=("Segoe UI", 9, "bold"), bd=0,
-                             padx=15, command=self.ventana_comunicacion)
-        btn_chat.pack(side="right", padx=10, pady=20)
+                tk.Label(
+                    header,
+                    image=self.logo_menu,
+                    bg=self.color_header
+                ).place(x=25, y=15)
+        except Exception as e:
+            print("ERROR LOGO:", e)
 
-        info_user = f"👤 {self.usuario_actual} | 🛠️ {self.rol_actual}"
-        tk.Label(header, text=info_user, fg="#bdc3c7", bg="#34495e", font=("Segoe UI", 10)).pack(side="right", padx=20)
+        tk.Button(
+            header,
+            text="📬 Mensajes",
+            bg="#e74c3c",
+            fg="white",
+            activebackground="#c0392b",
+            activeforeground="white",
+            font=("Segoe UI", 10, "bold"),
+            bd=0,
+            padx=15,
+            pady=8,
+            cursor="hand2",
+            command=self.ventana_comunicacion
+        ).place(relx=0.78, rely=0.5, anchor="center")
 
-        container = tk.Frame(self.root, bg="#f4f7f6")
-        container.pack(expand=True, fill="both", padx=50, pady=20)
+        btn_usuario = tk.Button(
+            header,
+            text=f"👤 {self.usuario_actual}",
+            bg=self.color_header,
+            fg="white",
+            bd=0,
+            font=("Segoe UI", 12, "bold"),
+            cursor="hand2"
+        )
+        btn_usuario.place(relx=0.98, rely=0.5, anchor="e")
+
+        menu_usuario = Menu(self.root, tearoff=0)
+        menu_usuario.add_command(
+            label="🌙 Cambiar Tema",
+            command=self.cambiar_tema
+        )
+        menu_usuario.add_command(
+            label="🛠️ Soporte",
+            command=self.mostrar_soporte
+        )
+        menu_usuario.add_separator()
+        menu_usuario.add_command(
+            label="❌ Cerrar Sesión",
+            command=self.pantalla_login
+        )
+
+        btn_usuario.bind(
+            "<Button-1>",
+            lambda e: menu_usuario.tk_popup(
+                e.x_root,
+                e.y_root
+            )
+        )
+
+        contenedor = tk.Frame(
+            self.root,
+            bg=self.color_fondo
+        )
+        contenedor.pack(expand=True, fill="both")
+
+        grid_frame = tk.Frame(
+            contenedor,
+            bg=self.color_fondo
+        )
+        grid_frame.place(
+            relx=0.5,
+            rely=0.5,
+            anchor="center"
+        )
 
         modulos = [
-            ("Registrar Publicidad", "#3498db", "👥", self.ventana_registrar_cliente_formal, "Ambos"),
-            ("Crear Proyecto", "#2ecc71", "➕", self.ventana_crear_proyecto, "Ambos"),
-            ("Historial Pro", "#9b59b6", "📋", self.ventana_historial, "Ambos"),
-            ("Publicidad (Editor)", "#f1c40f", "🎨", self.ventana_publicidad_editor, "Ambos"),
-            ("Continuar", "#e74c3c", "🚀", self.ventana_continuar_proyecto, "Ambos"),
-            ("Pagos", "#e67e22", "💰", self.ventana_pagos, "Programador"),
-            ("Facturas", "#9b59b6", "📋", self.ventana_facturas, "Ambos"),
-            ("Portal ID", "#34495e", "🆔", self.ventana_portal_empresa, "Ambos")
+            ("Registrar Publicidad", "#3498db", "👥", self.ventana_registrar_cliente_formal),
+            ("Crear Proyecto", "#2ecc71", "➕", self.ventana_crear_proyecto),
+            ("Historial Pro", "#9b59b6", "📋", self.ventana_historial),
+            ("Publicidad", "#f1c40f", "🎨", self.ventana_publicidad_editor),
+            ("Continuar", "#e74c3c", "🚀", self.ventana_continuar_proyecto),
+            ("Pagos", "#e67e22", "💰", self.ventana_pagos),
+            ("Facturas", "#8e44ad", "📄", self.ventana_facturas),
+            ("Portal ID", "#34495e", "🆔", self.ventana_portal_empresa)
         ]
 
-        col_count, row_count = 0, 0
-        for texto, color, icono, cmd, permiso in modulos:
-            if permiso == "Ambos" or self.rol_actual == "Programador":
-                card = tk.Frame(container, bg="white", padx=20, pady=20, highlightbackground="#dee2e6",
-                                highlightthickness=1)
-                card.grid(row=row_count, column=col_count, padx=15, pady=15)
-                tk.Label(card, text=icono, font=("Segoe UI", 35), bg="white", fg=color).pack()
-                tk.Label(card, text=texto.upper(), font=("Segoe UI", 10, "bold"), bg="white").pack(pady=10)
-                tk.Button(card, text="ACCEDER", bg=color, fg="white", font=("Segoe UI", 8, "bold"), width=15,
-                          command=cmd).pack()
-                col_count += 1
-                if col_count > 3:
-                    col_count = 0
-                    row_count += 1
+        fila = 0
+        columna = 0
 
-        btn_logout = tk.Button(self.root, text="❌ CERRAR SESIÓN", font=("Segoe UI", 10, "bold"),
-                               bg="#95a5a6", fg="white", bd=0, padx=25, pady=12, command=self.pantalla_login)
-        btn_logout.pack(side="bottom", pady=30)
+        for texto, color, icono, comando in modulos:
+            card = tk.Frame(
+                grid_frame,
+                bg=self.color_card,
+                width=190,
+                height=220,
+                highlightbackground="#f4a261",
+                highlightthickness=2
+            )
+            card.grid(
+                row=fila,
+                column=columna,
+                padx=18,
+                pady=18
+            )
+            card.grid_propagate(False)
+
+            contenido = tk.Frame(
+                card,
+                bg=self.color_card
+            )
+            contenido.place(
+                relx=0.5,
+                rely=0.5,
+                anchor="center"
+            )
+
+            tk.Label(
+                contenido,
+                text=icono,
+                font=("Segoe UI Emoji", 48),
+                fg=color,
+                bg=self.color_card
+            ).pack(pady=(0, 18))
+
+            tk.Label(
+                contenido,
+                text=texto,
+                font=("Segoe UI", 13, "bold"),
+                fg=self.color_texto,
+                bg=self.color_card
+            ).pack(pady=(0, 22))
+
+            tk.Button(
+                contenido,
+                text="ACCEDER",
+                bg=color,
+                fg="white",
+                font=("Segoe UI", 10, "bold"),
+                bd=0,
+                width=18,
+                height=2,
+                cursor="hand2",
+                command=comando
+            ).pack()
+
+            columna += 1
+            if columna > 3:
+                columna = 0
+                fila += 1
+
+    def abrir_ventana_simple(self, titulo):
+        v = tk.Toplevel(self.root)
+        v.title(titulo)
+        v.geometry("500x300")
+        tk.Label(
+            v,
+            text=titulo,
+            font=("Segoe UI", 20, "bold")
+        ).pack(expand=True)
 
     def ventana_registrar_cliente_formal(self):
         v = tk.Toplevel(self.root)
@@ -672,6 +923,70 @@ class SistemaGestion:
         datos = self.obtener_lista_db("SELECT * FROM pagos")
         for d in datos:
             tree.insert("", "end", values=d)
+
+    def ventana_comunicacion(self):
+        v = tk.Toplevel(self.root)
+        v.title("Mensajes")
+        v.geometry("600x450")
+
+        chat = tk.Text(v, height=15, state="disabled")
+        chat.pack(fill="both", expand=True, padx=20, pady=20)
+
+        msj = tk.Entry(v)
+        msj.pack(fill="x", padx=20)
+
+        def cargar():
+            chat.config(state="normal")
+            chat.delete("1.0", tk.END)
+
+            mensajes = self.obtener_lista_db(
+                """
+                SELECT remitente, contenido, fecha_hora
+                FROM mensajes
+                ORDER BY id_mensaje ASC
+                """
+            )
+
+            for m in mensajes:
+                chat.insert(
+                    tk.END,
+                    f"{m[0]} [{m[2]}]: {m[1]}\n"
+                )
+
+            chat.config(state="disabled")
+            chat.see(tk.END)
+
+        def enviar():
+            texto = msj.get().strip()
+            if not texto:
+                return
+
+            conn = sqlite3.connect(self.ruta_db)
+            conn.execute(
+                """
+                INSERT INTO mensajes
+                (remitente, contenido, fecha_hora)
+                VALUES (?, ?, ?)
+                """,
+                (
+                    self.usuario_actual,
+                    texto,
+                    datetime.now().strftime("%H:%M")
+                )
+            )
+            conn.commit()
+            conn.close()
+
+            msj.delete(0, tk.END)
+            cargar()
+
+        tk.Button(
+            v,
+            text="ENVIAR",
+            command=enviar
+        ).pack(pady=10)
+
+        cargar()
 
 
 if __name__ == "__main__":
