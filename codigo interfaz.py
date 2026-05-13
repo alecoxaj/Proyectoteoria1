@@ -26,11 +26,9 @@ class SistemaGestion:
 
         self.usuario_actual = ""
         self.rol_actual = ""
-
         self.img_original = None
         self.img_tk = None
         self.path_actual = ""
-
         self.menu_usuario_popup = None
         self.submenu_tema = None
 
@@ -108,23 +106,13 @@ class SistemaGestion:
         INSERT OR IGNORE INTO usuarios
         (nombre_completo, usuario_login, password, rol)
         VALUES (?, ?, ?, ?)
-        """, (
-            "Alejandro Coxaj",
-            "alejandro",
-            "prog123",
-            "Programador"
-        ))
+        """, ("Alejandro Coxaj", "alejandro", "prog123", "Programador"))
 
         c.execute("""
         INSERT OR IGNORE INTO usuarios
         (nombre_completo, usuario_login, password, rol)
         VALUES (?, ?, ?, ?)
-        """, (
-            "Francisco Contreras",
-            "francisco",
-            "prog123",
-            "Programador"
-        ))
+        """, ("Francisco Contreras", "francisco", "prog123", "Programador"))
 
         conn.commit()
         conn.close()
@@ -160,7 +148,9 @@ class SistemaGestion:
             widget.destroy()
 
     def obtener_usuarios(self):
-        datos = self.obtener_lista_db("SELECT usuario_login FROM usuarios ORDER BY nombre_completo")
+        datos = self.obtener_lista_db(
+            "SELECT usuario_login FROM usuarios ORDER BY nombre_completo"
+        )
         return [d[0] for d in datos]
 
     def aplicar_tema(self, modo_oscuro):
@@ -272,6 +262,7 @@ class SistemaGestion:
 
         ancho_submenu = 190
         alto_submenu = 108
+
         pantalla_ancho = self.root.winfo_screenwidth()
         pantalla_alto = self.root.winfo_screenheight()
 
@@ -326,7 +317,6 @@ class SistemaGestion:
 
         ancho_menu = 210
         alto_menu = 156
-
         pantalla_ancho = self.root.winfo_screenwidth()
         pantalla_alto = self.root.winfo_screenheight()
 
@@ -416,7 +406,6 @@ class SistemaGestion:
 
         tree.bind("<Double-1>", aceptar)
         self.root.wait_window(v)
-
         return seleccion["values"]
 
     def ventana_recuperar_password(self):
@@ -1246,7 +1235,12 @@ class SistemaGestion:
         ).pack()
 
         cols_c = ("Empresa", "ID Personal")
-        tree_clientes = ttk.Treeview(cuerpo, columns=cols_c, show="headings", height=5)
+        tree_clientes = ttk.Treeview(
+            cuerpo,
+            columns=cols_c,
+            show="headings",
+            height=5
+        )
 
         for col in cols_c:
             tree_clientes.heading(col, text=col)
@@ -1262,7 +1256,12 @@ class SistemaGestion:
         ).pack(pady=(10, 5))
 
         cols_p = ("Proyecto", "Fecha Inicio", "Estado", "Empresa Relacionada")
-        tree_proyectos = ttk.Treeview(cuerpo, columns=cols_p, show="headings")
+
+        tree_proyectos = ttk.Treeview(
+            cuerpo,
+            columns=cols_p,
+            show="headings"
+        )
 
         for col in cols_p:
             tree_proyectos.heading(col, text=col)
@@ -1367,9 +1366,18 @@ class SistemaGestion:
         panel_datos = tk.Frame(v, bg="white", pady=10)
         panel_datos.pack(fill="x")
 
-        tk.Label(panel_datos, text="ID Empresa (UUID):", bg="white").pack(side="left", padx=5)
+        tk.Label(
+            panel_datos,
+            text="ID Empresa (UUID):",
+            bg="white"
+        ).pack(side="left", padx=5)
 
-        ent_uuid = tk.Entry(panel_datos, font=("Consolas", 11), relief="solid", width=15)
+        ent_uuid = tk.Entry(
+            panel_datos,
+            font=("Consolas", 11),
+            relief="solid",
+            width=15
+        )
         ent_uuid.pack(side="left", padx=5)
 
         tk.Label(panel_datos, text="Proyecto:", bg="white").pack(side="left", padx=5)
@@ -1764,31 +1772,187 @@ class SistemaGestion:
     def ventana_comunicacion(self):
         v = tk.Toplevel(self.root)
         v.title("Mensajes")
-        v.geometry("600x450")
+        v.geometry("760x580")
+        v.configure(bg="#f4f6f8")
 
-        chat = tk.Text(v, height=15, state="disabled")
-        chat.pack(fill="both", expand=True, padx=20, pady=20)
+        seleccionado = {
+            "id": None,
+            "texto": "",
+            "frame": None
+        }
 
-        msj = tk.Entry(v)
-        msj.pack(fill="x", padx=20)
+        header = tk.Frame(v, bg="#f39c12", height=64)
+        header.pack(fill="x")
+        header.pack_propagate(False)
+
+        tk.Label(
+            header,
+            text="Mensajes",
+            bg="#f39c12",
+            fg="white",
+            font=("Segoe UI", 17, "bold")
+        ).pack(side="left", padx=24)
+
+        tk.Label(
+            header,
+            text=f"Sesión: {self.usuario_actual}",
+            bg="#f39c12",
+            fg="white",
+            font=("Segoe UI", 10)
+        ).pack(side="right", padx=24)
+
+        cuerpo = tk.Frame(v, bg="#f4f6f8")
+        cuerpo.pack(fill="both", expand=True, padx=18, pady=(18, 10))
+
+        canvas = tk.Canvas(
+            cuerpo,
+            bg="#f4f6f8",
+            highlightthickness=0
+        )
+
+        scroll = ttk.Scrollbar(
+            cuerpo,
+            orient="vertical",
+            command=canvas.yview
+        )
+
+        chat_frame = tk.Frame(canvas, bg="#f4f6f8")
+
+        canvas_window = canvas.create_window(
+            (0, 0),
+            window=chat_frame,
+            anchor="nw"
+        )
+
+        canvas.configure(yscrollcommand=scroll.set)
+        canvas.pack(side="left", fill="both", expand=True)
+        scroll.pack(side="right", fill="y")
+
+        def ajustar_scroll(event=None):
+            canvas.configure(scrollregion=canvas.bbox("all"))
+
+        def ajustar_ancho(event):
+            canvas.itemconfigure(canvas_window, width=event.width)
+
+        chat_frame.bind("<Configure>", ajustar_scroll)
+        canvas.bind("<Configure>", ajustar_ancho)
+
+        panel_envio = tk.Frame(v, bg="#ffffff", padx=16, pady=14)
+        panel_envio.pack(fill="x", padx=18, pady=(0, 18))
+
+        msj = tk.Entry(
+            panel_envio,
+            font=("Segoe UI", 11),
+            relief="solid",
+            bd=1
+        )
+        msj.pack(side="left", fill="x", expand=True, ipady=9, padx=(0, 12))
+
+        botones = tk.Frame(panel_envio, bg="#ffffff")
+        botones.pack(side="right")
+
+        def limpiar_seleccion():
+            if seleccionado["frame"] and seleccionado["frame"].winfo_exists():
+                seleccionado["frame"].configure(
+                    highlightthickness=0,
+                    highlightbackground="#ffffff"
+                )
+
+            seleccionado["id"] = None
+            seleccionado["texto"] = ""
+            seleccionado["frame"] = None
+
+        def seleccionar_mensaje(id_mensaje, texto, frame_burbuja):
+            if seleccionado["frame"] and seleccionado["frame"].winfo_exists():
+                seleccionado["frame"].configure(
+                    highlightthickness=0,
+                    highlightbackground="#ffffff"
+                )
+
+            seleccionado["id"] = id_mensaje
+            seleccionado["texto"] = texto
+            seleccionado["frame"] = frame_burbuja
+
+            frame_burbuja.configure(
+                highlightthickness=2,
+                highlightbackground="#2980b9"
+            )
+
+            msj.delete(0, tk.END)
+            msj.insert(0, texto)
 
         def cargar():
-            chat.config(state="normal")
-            chat.delete("1.0", tk.END)
+            for widget in chat_frame.winfo_children():
+                widget.destroy()
 
             mensajes = self.obtener_lista_db(
                 """
-                SELECT remitente, contenido, fecha_hora
+                SELECT id_mensaje, remitente, contenido, fecha_hora
                 FROM mensajes
                 ORDER BY id_mensaje ASC
                 """
             )
 
-            for m in mensajes:
-                chat.insert(tk.END, f"{m[0]} [{m[2]}]: {m[1]}\n")
+            for id_mensaje, remitente, contenido, fecha_hora in mensajes:
+                es_mio = remitente == self.usuario_actual
 
-            chat.config(state="disabled")
-            chat.see(tk.END)
+                fila = tk.Frame(chat_frame, bg="#f4f6f8")
+                fila.pack(fill="x", pady=6, padx=8)
+
+                color_burbuja = "#f39c12" if es_mio else "white"
+                color_texto = "white" if es_mio else "#2c3e50"
+                color_meta = "#fff3d9" if es_mio else "#7f8c8d"
+
+                contenedor_burbuja = tk.Frame(
+                    fila,
+                    bg=color_burbuja,
+                    padx=12,
+                    pady=8,
+                    highlightthickness=0,
+                    highlightbackground="#ffffff"
+                )
+
+                contenedor_burbuja.pack(
+                    side="right" if es_mio else "left",
+                    anchor="e" if es_mio else "w",
+                    padx=(90, 0) if es_mio else (0, 90)
+                )
+
+                tk.Label(
+                    contenedor_burbuja,
+                    text=f"{remitente} · {fecha_hora}",
+                    bg=color_burbuja,
+                    fg=color_meta,
+                    font=("Segoe UI", 8, "bold"),
+                    anchor="w",
+                    justify="left"
+                ).pack(anchor="w")
+
+                tk.Label(
+                    contenedor_burbuja,
+                    text=contenido,
+                    bg=color_burbuja,
+                    fg=color_texto,
+                    font=("Segoe UI", 10),
+                    wraplength=430,
+                    justify="left",
+                    anchor="w"
+                ).pack(anchor="w", pady=(3, 0))
+
+                def click_mensaje(
+                    event,
+                    id_sel=id_mensaje,
+                    texto_sel=contenido,
+                    frame_sel=contenedor_burbuja
+                ):
+                    seleccionar_mensaje(id_sel, texto_sel, frame_sel)
+
+                contenedor_burbuja.bind("<Button-1>", click_mensaje)
+
+                for hijo in contenedor_burbuja.winfo_children():
+                    hijo.bind("<Button-1>", click_mensaje)
+
+            v.after(100, lambda: canvas.yview_moveto(1.0))
 
         def enviar():
             texto = msj.get().strip()
@@ -1810,9 +1974,115 @@ class SistemaGestion:
             )
 
             msj.delete(0, tk.END)
+            limpiar_seleccion()
             cargar()
 
-        tk.Button(v, text="ENVIAR", command=enviar).pack(pady=10)
+        def editar_mensaje():
+            if not seleccionado["id"]:
+                messagebox.showwarning(
+                    "Atención",
+                    "Seleccione un mensaje para editar."
+                )
+                return
+
+            texto = msj.get().strip()
+
+            if not texto:
+                messagebox.showwarning(
+                    "Atención",
+                    "El mensaje no puede quedar vacío."
+                )
+                return
+
+            self.ejecutar_db(
+                """
+                UPDATE mensajes
+                SET contenido=?, fecha_hora=?
+                WHERE id_mensaje=?
+                """,
+                (
+                    texto,
+                    datetime.now().strftime("%H:%M"),
+                    seleccionado["id"]
+                )
+            )
+
+            msj.delete(0, tk.END)
+            limpiar_seleccion()
+            cargar()
+
+        def eliminar_mensaje():
+            if not seleccionado["id"]:
+                messagebox.showwarning(
+                    "Atención",
+                    "Seleccione un mensaje para eliminar."
+                )
+                return
+
+            confirmar = messagebox.askyesno(
+                "Eliminar mensaje",
+                "¿Desea eliminar el mensaje seleccionado?"
+            )
+
+            if not confirmar:
+                return
+
+            self.ejecutar_db(
+                "DELETE FROM mensajes WHERE id_mensaje=?",
+                (seleccionado["id"],)
+            )
+
+            msj.delete(0, tk.END)
+            limpiar_seleccion()
+            cargar()
+
+        tk.Button(
+            botones,
+            text="Enviar",
+            command=enviar,
+            bg="#2ecc71",
+            fg="white",
+            activebackground="#27ae60",
+            activeforeground="white",
+            font=("Segoe UI", 9, "bold"),
+            bd=0,
+            width=12,
+            height=2,
+            cursor="hand2"
+        ).pack(side="left", padx=4)
+
+        tk.Button(
+            botones,
+            text="Editar mensaje",
+            command=editar_mensaje,
+            bg="#3498db",
+            fg="white",
+            activebackground="#2980b9",
+            activeforeground="white",
+            font=("Segoe UI", 9, "bold"),
+            bd=0,
+            width=15,
+            height=2,
+            cursor="hand2"
+        ).pack(side="left", padx=4)
+
+        tk.Button(
+            botones,
+            text="Eliminar mensaje",
+            command=eliminar_mensaje,
+            bg="#e74c3c",
+            fg="white",
+            activebackground="#c0392b",
+            activeforeground="white",
+            font=("Segoe UI", 9, "bold"),
+            bd=0,
+            width=16,
+            height=2,
+            cursor="hand2"
+        ).pack(side="left", padx=4)
+
+        msj.bind("<Return>", lambda e: enviar())
+
         cargar()
 
     def ventana_pagos(self, id_pago_editar=None):
