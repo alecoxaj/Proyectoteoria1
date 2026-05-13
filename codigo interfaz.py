@@ -10,7 +10,7 @@ from PIL import Image, ImageTk, ImageOps
 
 class SistemaGestion:
     def __init__(self, root):
-        
+
         self.root = root
         self.root.title("Espacio Creativo v3.0 - Gestión Pro")
         self.root.geometry("1200x850")
@@ -178,9 +178,9 @@ class SistemaGestion:
         self.cerrar_menus_usuario()
         messagebox.showinfo(
             "Soporte Técnico",
-            "ESPACIO CREATIVO\n\n"
+            "Contáctanos al:\n\n"
             "Correo: soporte@espaciocreativo.com\n"
-            "Tel: +502 5555-5555"
+            "Tel: +502 4560-7604, +502 4135-7899, +502 3067-8267"
         )
 
     def cerrar_sesion(self):
