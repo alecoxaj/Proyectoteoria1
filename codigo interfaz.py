@@ -10,6 +10,7 @@ from PIL import Image, ImageTk, ImageOps
 
 class SistemaGestion:
     def __init__(self, root):
+        
         self.root = root
         self.root.title("Espacio Creativo v3.0 - Gestión Pro")
         self.root.geometry("1200x850")
