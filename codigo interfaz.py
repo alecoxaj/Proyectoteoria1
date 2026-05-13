@@ -22,10 +22,7 @@ class SistemaGestion:
 
         ruta_carpeta = os.path.dirname(os.path.abspath(__file__))
         self.ruta_db = os.path.join(ruta_carpeta, "gestion_proyectos.db")
-        self.ruta_logo = os.path.join(
-            ruta_carpeta,
-            "NARANJA - VERTICAL-Photoroom.png"
-        )
+        self.ruta_logo = os.path.join(ruta_carpeta, "NARANJA - VERTICAL-Photoroom.png")
 
         self.usuario_actual = ""
         self.rol_actual = ""
@@ -135,11 +132,7 @@ class SistemaGestion:
     def configurar_estilos(self):
         style = ttk.Style()
         style.theme_use("clam")
-        style.configure(
-            "Treeview",
-            rowheight=28,
-            font=("Segoe UI", 10)
-        )
+        style.configure("Treeview", rowheight=28, font=("Segoe UI", 10))
 
     def obtener_lista_db(self, consulta, params=()):
         try:
@@ -167,9 +160,7 @@ class SistemaGestion:
             widget.destroy()
 
     def obtener_usuarios(self):
-        datos = self.obtener_lista_db(
-            "SELECT usuario_login FROM usuarios"
-        )
+        datos = self.obtener_lista_db("SELECT usuario_login FROM usuarios ORDER BY nombre_completo")
         return [d[0] for d in datos]
 
     def aplicar_tema(self, modo_oscuro):
@@ -219,12 +210,7 @@ class SistemaGestion:
         self.menu_usuario_popup = None
 
     def crear_item_menu(self, padre, icono, texto, comando=None, flecha=False):
-        item = tk.Frame(
-            padre,
-            bg="white",
-            height=48,
-            cursor="hand2"
-        )
+        item = tk.Frame(padre, bg="white", height=48, cursor="hand2")
         item.pack(fill="x")
         item.pack_propagate(False)
 
@@ -286,7 +272,6 @@ class SistemaGestion:
 
         ancho_submenu = 190
         alto_submenu = 108
-
         pantalla_ancho = self.root.winfo_screenwidth()
         pantalla_alto = self.root.winfo_screenheight()
 
@@ -354,9 +339,7 @@ class SistemaGestion:
         self.menu_usuario_popup = tk.Toplevel(self.root)
         self.menu_usuario_popup.overrideredirect(True)
         self.menu_usuario_popup.configure(bg="#dddddd")
-        self.menu_usuario_popup.geometry(
-            f"{ancho_menu}x{alto_menu}+{x}+{y}"
-        )
+        self.menu_usuario_popup.geometry(f"{ancho_menu}x{alto_menu}+{x}+{y}")
 
         contenedor = tk.Frame(
             self.menu_usuario_popup,
@@ -373,10 +356,7 @@ class SistemaGestion:
             lambda: self.mostrar_submenu_tema(x, y),
             flecha=True
         )
-        item_ajustes.bind(
-            "<Enter>",
-            lambda e: self.mostrar_submenu_tema(x, y)
-        )
+        item_ajustes.bind("<Enter>", lambda e: self.mostrar_submenu_tema(x, y))
 
         self.crear_item_menu(
             contenedor,
@@ -419,12 +399,8 @@ class SistemaGestion:
 
         def aceptar(event=None):
             item = tree.selection()
-
             if not item:
-                messagebox.showwarning(
-                    "Atención",
-                    "Seleccione un registro."
-                )
+                messagebox.showwarning("Atención", "Seleccione un registro.")
                 return
 
             seleccion["values"] = tree.item(item, "values")
@@ -439,9 +415,159 @@ class SistemaGestion:
         ).pack(pady=10)
 
         tree.bind("<Double-1>", aceptar)
-
         self.root.wait_window(v)
+
         return seleccion["values"]
+
+    def ventana_recuperar_password(self):
+        v = tk.Toplevel(self.root)
+        v.title("Recuperar contraseña")
+        v.geometry("430x430")
+        v.configure(bg="white")
+        v.resizable(False, False)
+
+        tk.Label(
+            v,
+            text="¿Olvidaste tu contraseña?",
+            font=("Segoe UI", 16, "bold"),
+            bg="white",
+            fg="#f39c12"
+        ).pack(pady=(28, 8))
+
+        tk.Label(
+            v,
+            text="Selecciona tu usuario y crea una contraseña nueva.",
+            font=("Segoe UI", 10),
+            bg="white",
+            fg="#7f8c8d"
+        ).pack(pady=(0, 22))
+
+        formulario = tk.Frame(v, bg="white", padx=42)
+        formulario.pack(fill="x")
+
+        usuarios = self.obtener_lista_db(
+            """
+            SELECT usuario_login, nombre_completo
+            FROM usuarios
+            ORDER BY nombre_completo
+            """
+        )
+
+        nombres_usuario = [
+            f"{nombre} ({usuario})"
+            for usuario, nombre in usuarios
+        ]
+
+        mapa_usuarios = {
+            f"{nombre} ({usuario})": usuario
+            for usuario, nombre in usuarios
+        }
+
+        tk.Label(
+            formulario,
+            text="Usuario:",
+            bg="white",
+            fg="#2c3e50",
+            font=("Segoe UI", 10, "bold")
+        ).pack(anchor="w")
+
+        cb_usuario = ttk.Combobox(
+            formulario,
+            values=nombres_usuario,
+            state="readonly"
+        )
+        cb_usuario.pack(fill="x", pady=(6, 16), ipady=4)
+
+        if nombres_usuario:
+            cb_usuario.current(0)
+
+        tk.Label(
+            formulario,
+            text="Nueva contraseña:",
+            bg="white",
+            fg="#2c3e50",
+            font=("Segoe UI", 10, "bold")
+        ).pack(anchor="w")
+
+        ent_nueva = tk.Entry(formulario, show="*", relief="solid", bd=1)
+        ent_nueva.pack(fill="x", pady=(6, 16), ipady=5)
+
+        tk.Label(
+            formulario,
+            text="Confirmar contraseña:",
+            bg="white",
+            fg="#2c3e50",
+            font=("Segoe UI", 10, "bold")
+        ).pack(anchor="w")
+
+        ent_confirmar = tk.Entry(formulario, show="*", relief="solid", bd=1)
+        ent_confirmar.pack(fill="x", pady=(6, 22), ipady=5)
+
+        def guardar_password():
+            etiqueta_usuario = cb_usuario.get()
+            usuario_login = mapa_usuarios.get(etiqueta_usuario)
+            nueva = ent_nueva.get().strip()
+            confirmar = ent_confirmar.get().strip()
+
+            if not usuario_login:
+                messagebox.showwarning("Atención", "Seleccione un usuario.")
+                return
+
+            if not nueva or not confirmar:
+                messagebox.showwarning("Atención", "Complete ambos campos.")
+                return
+
+            if len(nueva) < 4:
+                messagebox.showwarning(
+                    "Atención",
+                    "La contraseña debe tener al menos 4 caracteres."
+                )
+                return
+
+            if nueva != confirmar:
+                messagebox.showerror(
+                    "Error",
+                    "Las contraseñas no coinciden."
+                )
+                return
+
+            self.ejecutar_db(
+                """
+                UPDATE usuarios
+                SET password=?
+                WHERE usuario_login=?
+                """,
+                (nueva, usuario_login)
+            )
+
+            messagebox.showinfo(
+                "Éxito",
+                "Contraseña actualizada correctamente."
+            )
+
+            if hasattr(self, "combo_user"):
+                self.combo_user.set(usuario_login)
+
+            if hasattr(self, "entry_pass"):
+                self.entry_pass.delete(0, tk.END)
+                self.entry_pass.focus()
+
+            v.destroy()
+
+        ent_confirmar.bind("<Return>", lambda e: guardar_password())
+
+        tk.Button(
+            v,
+            text="CAMBIAR CONTRASEÑA",
+            bg="#f39c12",
+            fg="white",
+            font=("Segoe UI", 10, "bold"),
+            bd=0,
+            width=26,
+            height=2,
+            cursor="hand2",
+            command=guardar_password
+        ).pack(pady=6)
 
     def pantalla_login(self):
         self.limpiar_pantalla()
@@ -510,11 +636,7 @@ class SistemaGestion:
             fg=self.color_texto
         ).pack(anchor="w")
 
-        self.entry_pass = tk.Entry(
-            card,
-            show="*",
-            width=30
-        )
+        self.entry_pass = tk.Entry(card, show="*", width=30)
         self.entry_pass.pack(pady=(6, 18), ipady=5)
         self.entry_pass.focus()
 
@@ -553,6 +675,19 @@ class SistemaGestion:
             command=login
         ).pack(pady=8)
 
+        tk.Button(
+            card,
+            text="¿Olvidaste tu contraseña?",
+            bg=self.color_card,
+            fg="#3498db",
+            activebackground=self.color_card,
+            activeforeground="#2980b9",
+            font=("Segoe UI", 9, "underline"),
+            bd=0,
+            cursor="hand2",
+            command=self.ventana_recuperar_password
+        ).pack(pady=(2, 0))
+
     def menu_principal(self):
         self.limpiar_pantalla()
 
@@ -563,11 +698,7 @@ class SistemaGestion:
 
         self.root.configure(bg=self.color_fondo)
 
-        header = tk.Frame(
-            self.root,
-            bg=self.color_header,
-            height=120
-        )
+        header = tk.Frame(self.root, bg=self.color_header, height=120)
         header.pack(fill="x")
         header.pack_propagate(False)
 
@@ -637,21 +768,11 @@ class SistemaGestion:
             command=self.ventana_comunicacion
         ).place(relx=0.58, rely=0.5, anchor="center")
 
-        contenedor = tk.Frame(
-            self.root,
-            bg=self.color_fondo
-        )
+        contenedor = tk.Frame(self.root, bg=self.color_fondo)
         contenedor.pack(expand=True, fill="both")
 
-        grid_frame = tk.Frame(
-            contenedor,
-            bg=self.color_fondo
-        )
-        grid_frame.place(
-            relx=0.5,
-            rely=0.5,
-            anchor="center"
-        )
+        grid_frame = tk.Frame(contenedor, bg=self.color_fondo)
+        grid_frame.place(relx=0.5, rely=0.5, anchor="center")
 
         modulos = [
             ("Registrar Publicidad", "#3498db", "👥", self.ventana_registrar_cliente_formal),
@@ -676,23 +797,11 @@ class SistemaGestion:
                 highlightbackground="#f4a261",
                 highlightthickness=2
             )
-            card.grid(
-                row=fila,
-                column=columna,
-                padx=18,
-                pady=18
-            )
+            card.grid(row=fila, column=columna, padx=18, pady=18)
             card.grid_propagate(False)
 
-            contenido = tk.Frame(
-                card,
-                bg=self.color_card
-            )
-            contenido.place(
-                relx=0.5,
-                rely=0.5,
-                anchor="center"
-            )
+            contenido = tk.Frame(card, bg=self.color_card)
+            contenido.place(relx=0.5, rely=0.5, anchor="center")
 
             tk.Label(
                 contenido,
@@ -724,7 +833,6 @@ class SistemaGestion:
             ).pack()
 
             columna += 1
-
             if columna > 3:
                 columna = 0
                 fila += 1
@@ -761,35 +869,19 @@ class SistemaGestion:
         f = tk.Frame(v, bg="white", padx=40)
         f.pack(fill="both")
 
-        tk.Label(
-            f,
-            text="🏢  Nombre de la Empresa:",
-            bg="white"
-        ).pack(anchor="w")
+        tk.Label(f, text="🏢  Nombre de la Empresa:", bg="white").pack(anchor="w")
         nom_e = tk.Entry(f, relief="solid", bd=1)
         nom_e.pack(fill="x", pady=(5, 15))
 
-        tk.Label(
-            f,
-            text="📞  Número Telefónico Referido:",
-            bg="white"
-        ).pack(anchor="w")
+        tk.Label(f, text="📞  Número Telefónico Referido:", bg="white").pack(anchor="w")
         tel_e = tk.Entry(f, relief="solid", bd=1)
         tel_e.pack(fill="x", pady=(5, 15))
 
-        tk.Label(
-            f,
-            text="✉️  Correo Electrónico:",
-            bg="white"
-        ).pack(anchor="w")
+        tk.Label(f, text="✉️  Correo Electrónico:", bg="white").pack(anchor="w")
         cor_e = tk.Entry(f, relief="solid", bd=1)
         cor_e.pack(fill="x", pady=(5, 15))
 
-        tk.Label(
-            f,
-            text="📍  Dirección de la Empresa:",
-            bg="white"
-        ).pack(anchor="w")
+        tk.Label(f, text="📍  Dirección de la Empresa:", bg="white").pack(anchor="w")
         dir_e = tk.Entry(f, relief="solid", bd=1)
         dir_e.pack(fill="x", pady=(5, 30))
 
@@ -812,9 +904,7 @@ class SistemaGestion:
 
             if seleccionado:
                 v.destroy()
-                self.ventana_registrar_cliente_formal(
-                    int(seleccionado[0])
-                )
+                self.ventana_registrar_cliente_formal(int(seleccionado[0]))
 
         def guardar():
             nombre = nom_e.get().strip()
@@ -889,10 +979,7 @@ class SistemaGestion:
                 v.destroy()
 
             except Exception as e:
-                messagebox.showerror(
-                    "Error",
-                    f"No se pudo guardar: {e}"
-                )
+                messagebox.showerror("Error", f"No se pudo guardar: {e}")
 
         tk.Button(
             v,
@@ -950,11 +1037,7 @@ class SistemaGestion:
         f = tk.Frame(v, bg="white", padx=40)
         f.pack(fill="both")
 
-        tk.Label(
-            f,
-            text="Seleccionar Empresa:",
-            bg="white"
-        ).pack(anchor="w")
+        tk.Label(f, text="Seleccionar Empresa:", bg="white").pack(anchor="w")
 
         clientes_db = self.obtener_lista_db(
             """
@@ -976,19 +1059,12 @@ class SistemaGestion:
         )
         cb_clientes.pack(fill="x", pady=(5, 15))
 
-        tk.Label(
-            f,
-            text="Nombre del Proyecto:",
-            bg="white"
-        ).pack(anchor="w")
+        tk.Label(f, text="Nombre del Proyecto:", bg="white").pack(anchor="w")
         ent_nombre_p = tk.Entry(f, relief="solid", bd=1)
         ent_nombre_p.pack(fill="x", pady=(5, 15))
 
-        tk.Label(
-            f,
-            text="Fecha de Inicio:",
-            bg="white"
-        ).pack(anchor="w")
+        tk.Label(f, text="Fecha de Inicio:", bg="white").pack(anchor="w")
+
         ent_fecha = DateEntry(
             f,
             width=12,
@@ -999,11 +1075,8 @@ class SistemaGestion:
         )
         ent_fecha.pack(fill="x", pady=(5, 15))
 
-        tk.Label(
-            f,
-            text="Estado Inicial:",
-            bg="white"
-        ).pack(anchor="w")
+        tk.Label(f, text="Estado Inicial:", bg="white").pack(anchor="w")
+
         cb_estado = ttk.Combobox(
             f,
             values=["En Espera", "Trabajando", "Finalizado"],
@@ -1023,9 +1096,7 @@ class SistemaGestion:
             ent_nombre_p.insert(0, nombre)
 
             try:
-                ent_fecha.set_date(
-                    datetime.strptime(fecha, "%d/%m/%Y")
-                )
+                ent_fecha.set_date(datetime.strptime(fecha, "%d/%m/%Y"))
             except Exception:
                 pass
 
@@ -1045,19 +1116,14 @@ class SistemaGestion:
 
             if seleccionado:
                 v.destroy()
-                self.ventana_crear_proyecto(
-                    int(seleccionado[0])
-                )
+                self.ventana_crear_proyecto(int(seleccionado[0]))
 
         def guardar_proy():
             emp = cb_clientes.get()
             nom = ent_nombre_p.get().strip()
 
             if not emp or not nom:
-                messagebox.showwarning(
-                    "Error",
-                    "Complete los campos."
-                )
+                messagebox.showwarning("Error", "Complete los campos.")
                 return
 
             try:
@@ -1147,11 +1213,7 @@ class SistemaGestion:
             font=("Segoe UI", 9, "bold")
         ).pack(side="left", padx=(20, 5))
 
-        ent_id_busq = tk.Entry(
-            frame_busqueda,
-            font=("Consolas", 11),
-            width=15
-        )
+        ent_id_busq = tk.Entry(frame_busqueda, font=("Consolas", 11), width=15)
         ent_id_busq.pack(side="left", padx=10)
 
         tk.Label(
@@ -1162,11 +1224,7 @@ class SistemaGestion:
             font=("Segoe UI", 9, "bold")
         ).pack(side="left", padx=(20, 5))
 
-        ent_nom_busq = tk.Entry(
-            frame_busqueda,
-            font=("Segoe UI", 11),
-            width=20
-        )
+        ent_nom_busq = tk.Entry(frame_busqueda, font=("Segoe UI", 11), width=20)
         ent_nom_busq.pack(side="left", padx=10)
 
         cuerpo = tk.Frame(
@@ -1177,12 +1235,7 @@ class SistemaGestion:
             highlightthickness=1,
             highlightbackground="#dee2e6"
         )
-        cuerpo.pack(
-            expand=True,
-            fill="both",
-            padx=20,
-            pady=20
-        )
+        cuerpo.pack(expand=True, fill="both", padx=20, pady=20)
 
         tk.Label(
             cuerpo,
@@ -1193,12 +1246,7 @@ class SistemaGestion:
         ).pack()
 
         cols_c = ("Empresa", "ID Personal")
-        tree_clientes = ttk.Treeview(
-            cuerpo,
-            columns=cols_c,
-            show="headings",
-            height=5
-        )
+        tree_clientes = ttk.Treeview(cuerpo, columns=cols_c, show="headings", height=5)
 
         for col in cols_c:
             tree_clientes.heading(col, text=col)
@@ -1213,18 +1261,8 @@ class SistemaGestion:
             fg="#2c3e50"
         ).pack(pady=(10, 5))
 
-        cols_p = (
-            "Proyecto",
-            "Fecha Inicio",
-            "Estado",
-            "Empresa Relacionada"
-        )
-
-        tree_proyectos = ttk.Treeview(
-            cuerpo,
-            columns=cols_p,
-            show="headings"
-        )
+        cols_p = ("Proyecto", "Fecha Inicio", "Estado", "Empresa Relacionada")
+        tree_proyectos = ttk.Treeview(cuerpo, columns=cols_p, show="headings")
 
         for col in cols_p:
             tree_proyectos.heading(col, text=col)
@@ -1269,10 +1307,7 @@ class SistemaGestion:
                 query_p += " AND p.nombre LIKE ?"
                 params_p.append(f"%{nom_busc}%")
 
-            for p in self.obtener_lista_db(
-                query_p,
-                tuple(params_p)
-            ):
+            for p in self.obtener_lista_db(query_p, tuple(params_p)):
                 tree_proyectos.insert("", "end", values=p)
 
         def al_seleccionar_cliente(event):
@@ -1286,10 +1321,7 @@ class SistemaGestion:
 
         ent_id_busq.bind("<KeyRelease>", actualizar_tablas)
         ent_nom_busq.bind("<KeyRelease>", actualizar_tablas)
-        tree_clientes.bind(
-            "<<TreeviewSelect>>",
-            al_seleccionar_cliente
-        )
+        tree_clientes.bind("<<TreeviewSelect>>", al_seleccionar_cliente)
 
         actualizar_tablas()
 
@@ -1311,12 +1343,7 @@ class SistemaGestion:
         tree.heading("Empresa", text="Empresa")
         tree.heading("UUID / ID Personal", text="UUID Personal")
 
-        tree.pack(
-            expand=True,
-            fill="both",
-            padx=20,
-            pady=20
-        )
+        tree.pack(expand=True, fill="both", padx=20, pady=20)
 
         for d in self.obtener_lista_db(
             """
@@ -1327,11 +1354,7 @@ class SistemaGestion:
         ):
             tree.insert("", "end", values=d)
 
-    def ventana_publicidad_editor(
-        self,
-        id_editar=None,
-        id_pub_editar=None
-    ):
+    def ventana_publicidad_editor(self, id_editar=None, id_pub_editar=None):
         v = tk.Toplevel(self.root)
         v.title("Editor de Publicidad")
         v.geometry("1000x790")
@@ -1344,38 +1367,17 @@ class SistemaGestion:
         panel_datos = tk.Frame(v, bg="white", pady=10)
         panel_datos.pack(fill="x")
 
-        tk.Label(
-            panel_datos,
-            text="ID Empresa (UUID):",
-            bg="white"
-        ).pack(side="left", padx=5)
+        tk.Label(panel_datos, text="ID Empresa (UUID):", bg="white").pack(side="left", padx=5)
 
-        ent_uuid = tk.Entry(
-            panel_datos,
-            font=("Consolas", 11),
-            relief="solid",
-            width=15
-        )
+        ent_uuid = tk.Entry(panel_datos, font=("Consolas", 11), relief="solid", width=15)
         ent_uuid.pack(side="left", padx=5)
 
-        tk.Label(
-            panel_datos,
-            text="Proyecto:",
-            bg="white"
-        ).pack(side="left", padx=5)
+        tk.Label(panel_datos, text="Proyecto:", bg="white").pack(side="left", padx=5)
 
-        cb_proyectos = ttk.Combobox(
-            panel_datos,
-            state="readonly",
-            width=20
-        )
+        cb_proyectos = ttk.Combobox(panel_datos, state="readonly", width=20)
         cb_proyectos.pack(side="left", padx=5)
 
-        tk.Label(
-            panel_datos,
-            text="Estado:",
-            bg="white"
-        ).pack(side="left", padx=5)
+        tk.Label(panel_datos, text="Estado:", bg="white").pack(side="left", padx=5)
 
         cb_estado = ttk.Combobox(
             panel_datos,
@@ -1386,12 +1388,7 @@ class SistemaGestion:
         cb_estado.current(1)
         cb_estado.pack(side="left", padx=5)
 
-        canvas = tk.Canvas(
-            v,
-            bg="#ecf0f1",
-            width=600,
-            height=450
-        )
+        canvas = tk.Canvas(v, bg="#ecf0f1", width=600, height=450)
         canvas.pack(pady=20)
 
         def cargar_proyectos_de_empresa(event=None):
@@ -1480,17 +1477,10 @@ class SistemaGestion:
             if tipo == "crop":
                 w, h = self.img_original.size
                 self.img_original = self.img_original.crop(
-                    (
-                        w * 0.1,
-                        h * 0.1,
-                        w * 0.9,
-                        h * 0.9
-                    )
+                    (w * 0.1, h * 0.1, w * 0.9, h * 0.9)
                 )
             elif tipo == "gray":
-                self.img_original = ImageOps.grayscale(
-                    self.img_original
-                )
+                self.img_original = ImageOps.grayscale(self.img_original)
 
             actualizar_preview()
 
@@ -1507,9 +1497,7 @@ class SistemaGestion:
 
             if seleccionado:
                 v.destroy()
-                self.ventana_publicidad_editor(
-                    id_pub_editar=int(seleccionado[0])
-                )
+                self.ventana_publicidad_editor(id_pub_editar=int(seleccionado[0]))
 
         def guardar_db():
             id_emp = ent_uuid.get().strip()
@@ -1652,20 +1640,10 @@ class SistemaGestion:
         ent_id.pack(side="left", padx=10)
 
         tree_frame = tk.Frame(v, bg="white", padx=20, pady=10)
-        tree_frame.pack(
-            fill="both",
-            expand=True,
-            padx=30,
-            pady=10
-        )
+        tree_frame.pack(fill="both", expand=True, padx=30, pady=10)
 
         cols = ("Tipo", "Nombre / Archivo", "Estado", "Fecha", "UUID")
-        tree = ttk.Treeview(
-            tree_frame,
-            columns=cols,
-            show="headings",
-            height=15
-        )
+        tree = ttk.Treeview(tree_frame, columns=cols, show="headings", height=15)
 
         for c in cols:
             tree.heading(c, text=c.upper())
@@ -1710,10 +1688,7 @@ class SistemaGestion:
             if not item_sel:
                 return
 
-            tipo, nombre, estado, fecha, uuid_e = tree.item(
-                item_sel,
-                "values"
-            )
+            tipo, nombre, estado, fecha, uuid_e = tree.item(item_sel, "values")
 
             if estado == "Finalizado":
                 self.mostrar_vista_previa_final(nombre, tipo)
@@ -1766,11 +1741,7 @@ class SistemaGestion:
             img = Image.open(nombre_recurso)
             img.thumbnail((500, 350))
             self.img_preview_final = ImageTk.PhotoImage(img)
-            canvas_preview.create_image(
-                250,
-                175,
-                image=self.img_preview_final
-            )
+            canvas_preview.create_image(250, 175, image=self.img_preview_final)
         else:
             canvas_preview.create_text(
                 250,
@@ -1796,12 +1767,7 @@ class SistemaGestion:
         v.geometry("600x450")
 
         chat = tk.Text(v, height=15, state="disabled")
-        chat.pack(
-            fill="both",
-            expand=True,
-            padx=20,
-            pady=20
-        )
+        chat.pack(fill="both", expand=True, padx=20, pady=20)
 
         msj = tk.Entry(v)
         msj.pack(fill="x", padx=20)
@@ -1819,10 +1785,7 @@ class SistemaGestion:
             )
 
             for m in mensajes:
-                chat.insert(
-                    tk.END,
-                    f"{m[0]} [{m[2]}]: {m[1]}\n"
-                )
+                chat.insert(tk.END, f"{m[0]} [{m[2]}]: {m[1]}\n")
 
             chat.config(state="disabled")
             chat.see(tk.END)
@@ -1849,12 +1812,7 @@ class SistemaGestion:
             msj.delete(0, tk.END)
             cargar()
 
-        tk.Button(
-            v,
-            text="ENVIAR",
-            command=enviar
-        ).pack(pady=10)
-
+        tk.Button(v, text="ENVIAR", command=enviar).pack(pady=10)
         cargar()
 
     def ventana_pagos(self, id_pago_editar=None):
@@ -1894,30 +1852,15 @@ class SistemaGestion:
             highlightthickness=1,
             highlightbackground="#dee2e6"
         )
-        f.pack(
-            fill="both",
-            expand=True,
-            padx=20,
-            pady=10
-        )
+        f.pack(fill="both", expand=True, padx=20, pady=10)
 
-        tk.Label(
-            f,
-            text="ID Empresa (UUID):",
-            bg="white"
-        ).pack(anchor="w")
-        ent_uuid = tk.Entry(
-            f,
-            font=("Consolas", 11),
-            relief="solid"
-        )
+        tk.Label(f, text="ID Empresa (UUID):", bg="white").pack(anchor="w")
+
+        ent_uuid = tk.Entry(f, font=("Consolas", 11), relief="solid")
         ent_uuid.pack(fill="x", pady=(0, 15))
 
-        tk.Label(
-            f,
-            text="Proyecto Asociado:",
-            bg="white"
-        ).pack(anchor="w")
+        tk.Label(f, text="Proyecto Asociado:", bg="white").pack(anchor="w")
+
         cb_proy = ttk.Combobox(f, state="readonly")
         cb_proy.pack(fill="x", pady=(0, 15))
 
@@ -1939,19 +1882,13 @@ class SistemaGestion:
 
         ent_uuid.bind("<FocusOut>", cargar_proyectos)
 
-        tk.Label(
-            f,
-            text="Monto (Q):",
-            bg="white"
-        ).pack(anchor="w")
+        tk.Label(f, text="Monto (Q):", bg="white").pack(anchor="w")
+
         ent_monto = tk.Entry(f, relief="solid")
         ent_monto.pack(fill="x", pady=(0, 15))
 
-        tk.Label(
-            f,
-            text="Tipo de Pago:",
-            bg="white"
-        ).pack(anchor="w")
+        tk.Label(f, text="Tipo de Pago:", bg="white").pack(anchor="w")
+
         cb_tipo = ttk.Combobox(
             f,
             values=["Efectivo", "Tarjeta"],
@@ -1962,11 +1899,7 @@ class SistemaGestion:
 
         fecha_real = datos_editar[4] if datos_editar else datetime.now().strftime("%d/%m/%Y %H:%M")
 
-        tk.Label(
-            f,
-            text="Fecha de Pago:",
-            bg="white"
-        ).pack(anchor="w")
+        tk.Label(f, text="Fecha de Pago:", bg="white").pack(anchor="w")
 
         tk.Label(
             f,
@@ -2085,31 +2018,15 @@ class SistemaGestion:
         barra = tk.Frame(vf)
         barra.pack(fill="x", padx=20)
 
-        cols = (
-            "ID",
-            "Empresa (UUID)",
-            "Proyecto",
-            "Monto",
-            "Método",
-            "Fecha"
-        )
+        cols = ("ID", "Empresa (UUID)", "Proyecto", "Monto", "Método", "Fecha")
 
-        tree = ttk.Treeview(
-            vf,
-            columns=cols,
-            show="headings"
-        )
+        tree = ttk.Treeview(vf, columns=cols, show="headings")
 
         for c in cols:
             tree.heading(c, text=c)
             tree.column(c, width=120, anchor="center")
 
-        tree.pack(
-            fill="both",
-            expand=True,
-            padx=20,
-            pady=20
-        )
+        tree.pack(fill="both", expand=True, padx=20, pady=20)
 
         def cargar_datos():
             for item in tree.get_children():
