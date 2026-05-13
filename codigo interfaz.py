@@ -262,7 +262,6 @@ class SistemaGestion:
 
         ancho_submenu = 190
         alto_submenu = 108
-
         pantalla_ancho = self.root.winfo_screenwidth()
         pantalla_alto = self.root.winfo_screenheight()
 
@@ -1848,6 +1847,30 @@ class SistemaGestion:
         )
         msj.pack(side="left", fill="x", expand=True, ipady=9, padx=(0, 12))
 
+        placeholder = "Escribe un mensaje"
+        placeholder_activo = {"activo": False}
+
+        def mostrar_placeholder():
+            if not msj.get().strip():
+                placeholder_activo["activo"] = True
+                msj.config(fg="#95a5a6")
+                msj.delete(0, tk.END)
+                msj.insert(0, placeholder)
+
+        def ocultar_placeholder(event=None):
+            if placeholder_activo["activo"]:
+                placeholder_activo["activo"] = False
+                msj.config(fg="#2c3e50")
+                msj.delete(0, tk.END)
+
+        def obtener_texto_mensaje():
+            if placeholder_activo["activo"]:
+                return ""
+            return msj.get().strip()
+
+        msj.bind("<FocusIn>", ocultar_placeholder)
+        msj.bind("<FocusOut>", lambda e: mostrar_placeholder())
+
         botones = tk.Frame(panel_envio, bg="#ffffff")
         botones.pack(side="right")
 
@@ -1878,6 +1901,8 @@ class SistemaGestion:
                 highlightbackground="#2980b9"
             )
 
+            placeholder_activo["activo"] = False
+            msj.config(fg="#2c3e50")
             msj.delete(0, tk.END)
             msj.insert(0, texto)
 
@@ -1955,7 +1980,7 @@ class SistemaGestion:
             v.after(100, lambda: canvas.yview_moveto(1.0))
 
         def enviar():
-            texto = msj.get().strip()
+            texto = obtener_texto_mensaje()
 
             if not texto:
                 return
@@ -1975,6 +2000,7 @@ class SistemaGestion:
 
             msj.delete(0, tk.END)
             limpiar_seleccion()
+            mostrar_placeholder()
             cargar()
 
         def editar_mensaje():
@@ -1985,7 +2011,7 @@ class SistemaGestion:
                 )
                 return
 
-            texto = msj.get().strip()
+            texto = obtener_texto_mensaje()
 
             if not texto:
                 messagebox.showwarning(
@@ -2009,6 +2035,7 @@ class SistemaGestion:
 
             msj.delete(0, tk.END)
             limpiar_seleccion()
+            mostrar_placeholder()
             cargar()
 
         def eliminar_mensaje():
@@ -2034,6 +2061,7 @@ class SistemaGestion:
 
             msj.delete(0, tk.END)
             limpiar_seleccion()
+            mostrar_placeholder()
             cargar()
 
         tk.Button(
@@ -2083,6 +2111,7 @@ class SistemaGestion:
 
         msj.bind("<Return>", lambda e: enviar())
 
+        mostrar_placeholder()
         cargar()
 
     def ventana_pagos(self, id_pago_editar=None):
