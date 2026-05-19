@@ -1066,7 +1066,7 @@ class SistemaGestion:
 
         tk.Label(
             contenedor,
-            text="Guarde los datos de la empresa para asociarla a proyectos, pagos y publicidad.",
+            text="Guarda los datos de la empresa para asociarla a proyectos, pagos y publicidad.",
             bg="white",
             fg="#7f8c8d",
             font=("Segoe UI", 9),
@@ -1282,9 +1282,10 @@ class SistemaGestion:
 
     def ventana_crear_proyecto(self, id_proyecto_editar=None):
         v = tk.Toplevel(self.root)
-        v.title("Crear Nuevo Proyecto")
-        v.geometry("450x590")
-        v.configure(bg="white")
+        v.title("Crear Proyecto")
+        v.geometry("540x650")
+        v.configure(bg="#eef2f5")
+        v.resizable(False, False)
 
         datos_editar = None
 
@@ -1299,21 +1300,68 @@ class SistemaGestion:
             )
             datos_editar = datos[0] if datos else None
 
-        titulo = "EDITAR PROYECTO" if id_proyecto_editar else "NUEVO PROYECTO"
+        titulo_formulario = "Editar proyecto" if id_proyecto_editar else "Crear nuevo proyecto"
+
+        header = tk.Frame(v, bg="#2ecc71", height=78)
+        header.pack(fill="x")
+        header.pack_propagate(False)
 
         tk.Label(
+            header,
+            text="➕ Crear Proyecto",
+            bg="#2ecc71",
+            fg="white",
+            font=("Segoe UI", 20, "bold")
+        ).pack(side="left", padx=28)
+
+        contenedor = tk.Frame(
             v,
-            text=titulo,
-            font=("Segoe UI", 16, "bold"),
             bg="white",
-            fg="#2ecc71"
-        ).pack(pady=30)
+            padx=32,
+            pady=24,
+            highlightthickness=1,
+            highlightbackground="#d8dee4"
+        )
+        contenedor.pack(fill="both", expand=True, padx=28, pady=24)
 
-        f = tk.Frame(v, bg="white", padx=40)
-        f.pack(fill="both")
+        tk.Label(
+            contenedor,
+            text=titulo_formulario,
+            bg="white",
+            fg="#2c3e50",
+            font=("Segoe UI", 16, "bold")
+        ).pack(anchor="w", pady=(0, 6))
 
-        tk.Label(f, text="Seleccionar Empresa:", bg="white").pack(anchor="w")
+        tk.Label(
+            contenedor,
+            text="Asocia un proyecto a una empresa y define su fecha de inicio y estado.",
+            bg="white",
+            fg="#7f8c8d",
+            font=("Segoe UI", 9),
+            wraplength=440,
+            justify="left"
+        ).pack(anchor="w", pady=(0, 18))
 
+        def etiqueta(texto):
+            tk.Label(
+                contenedor,
+                text=texto,
+                bg="white",
+                fg="#2c3e50",
+                font=("Segoe UI", 9, "bold")
+            ).pack(anchor="w")
+
+        def campo():
+            entrada = tk.Entry(
+                contenedor,
+                font=("Segoe UI", 10),
+                relief="solid",
+                bd=1
+            )
+            entrada.pack(fill="x", pady=(4, 14), ipady=5)
+            return entrada
+
+        etiqueta("Empresa:")
         clientes_db = self.obtener_lista_db(
             """
             SELECT id_cliente, nombre_empresa
@@ -1328,37 +1376,37 @@ class SistemaGestion:
         }
 
         cb_clientes = ttk.Combobox(
-            f,
+            contenedor,
             values=list(dict_clientes.keys()),
-            state="readonly"
+            state="readonly",
+            font=("Segoe UI", 10)
         )
-        cb_clientes.pack(fill="x", pady=(5, 15))
+        cb_clientes.pack(fill="x", pady=(4, 14), ipady=4)
 
-        tk.Label(f, text="Nombre del Proyecto:", bg="white").pack(anchor="w")
-        ent_nombre_p = tk.Entry(f, relief="solid", bd=1)
-        ent_nombre_p.pack(fill="x", pady=(5, 15))
+        etiqueta("Nombre del proyecto:")
+        ent_nombre_p = campo()
 
-        tk.Label(f, text="Fecha de Inicio:", bg="white").pack(anchor="w")
-
+        etiqueta("Fecha de inicio:")
         ent_fecha = DateEntry(
-            f,
+            contenedor,
             width=12,
-            background="darkblue",
+            background="#2ecc71",
             foreground="white",
             borderwidth=2,
-            date_pattern="dd/mm/yyyy"
+            date_pattern="dd/mm/yyyy",
+            font=("Segoe UI", 10)
         )
-        ent_fecha.pack(fill="x", pady=(5, 15))
+        ent_fecha.pack(fill="x", pady=(4, 14), ipady=4)
 
-        tk.Label(f, text="Estado Inicial:", bg="white").pack(anchor="w")
-
+        etiqueta("Estado:")
         cb_estado = ttk.Combobox(
-            f,
+            contenedor,
             values=["En Espera", "Trabajando", "Finalizado"],
-            state="readonly"
+            state="readonly",
+            font=("Segoe UI", 10)
         )
         cb_estado.current(0)
-        cb_estado.pack(fill="x", pady=(5, 30))
+        cb_estado.pack(fill="x", pady=(4, 18), ipady=4)
 
         if datos_editar:
             id_cliente, nombre, fecha, estado = datos_editar
@@ -1377,6 +1425,15 @@ class SistemaGestion:
 
             cb_estado.set(estado)
 
+        botones = tk.Frame(contenedor, bg="white")
+        botones.pack(fill="x", pady=(10, 0))
+
+        def limpiar_campos():
+            cb_clientes.set("")
+            ent_nombre_p.delete(0, tk.END)
+            cb_estado.current(0)
+            ent_nombre_p.focus()
+
         def editar_existente():
             seleccionado = self.seleccionar_registro(
                 "Editar proyecto",
@@ -1394,11 +1451,17 @@ class SistemaGestion:
                 self.ventana_crear_proyecto(int(seleccionado[0]))
 
         def guardar_proy():
-            emp = cb_clientes.get()
+            emp = cb_clientes.get().strip()
             nom = ent_nombre_p.get().strip()
+            estado = cb_estado.get().strip()
+            fecha = ent_fecha.get()
 
-            if not emp or not nom:
-                messagebox.showwarning("Error", "Complete los campos.")
+            if not emp:
+                messagebox.showwarning("Atención", "Selecciona una empresa.")
+                return
+
+            if not nom:
+                messagebox.showwarning("Atención", "Ingresa el nombre del proyecto.")
                 return
 
             try:
@@ -1412,14 +1475,14 @@ class SistemaGestion:
                         (
                             dict_clientes[emp],
                             nom,
-                            ent_fecha.get(),
-                            cb_estado.get(),
+                            fecha,
+                            estado,
                             id_proyecto_editar
                         )
                     )
 
                     messagebox.showinfo(
-                        "Exito",
+                        "Éxito",
                         "Proyecto actualizado correctamente."
                     )
                 else:
@@ -1432,44 +1495,65 @@ class SistemaGestion:
                         (
                             dict_clientes[emp],
                             nom,
-                            ent_fecha.get(),
-                            cb_estado.get()
+                            fecha,
+                            estado
                         )
                     )
 
                     messagebox.showinfo(
-                        "Exito",
+                        "Éxito",
                         "Proyecto guardado correctamente."
                     )
 
                 v.destroy()
 
             except Exception as e:
-                messagebox.showerror("Error", str(e))
+                messagebox.showerror("Error", f"No se pudo guardar:\n{e}")
 
         tk.Button(
-            v,
-            text="GUARDAR CAMBIOS" if id_proyecto_editar else "REGISTRAR PROYECTO",
+            botones,
+            text="💾 GUARDAR CAMBIOS" if id_proyecto_editar else "💾 REGISTRAR PROYECTO",
             bg="#2ecc71",
             fg="white",
-            font=("Segoe UI", 11, "bold"),
-            relief="flat",
+            activebackground="#27ae60",
+            activeforeground="white",
+            font=("Segoe UI", 10, "bold"),
+            bd=0,
             height=2,
-            width=30,
+            cursor="hand2",
             command=guardar_proy
-        ).pack(pady=6)
+        ).pack(fill="x", pady=(0, 8))
+
+        fila_botones = tk.Frame(botones, bg="white")
+        fila_botones.pack(fill="x")
 
         tk.Button(
-            v,
-            text="Editar",
+            fila_botones,
+            text="✏️ EDITAR EXISTENTE",
             bg="#3498db",
             fg="white",
+            activebackground="#2980b9",
+            activeforeground="white",
             font=("Segoe UI", 10, "bold"),
-            relief="flat",
-            height=2,
-            width=30,
+            bd=0,
+            height=3,
+            cursor="hand2",
             command=editar_existente
-        ).pack(pady=6)
+        ).pack(side="left", fill="x", expand=True, padx=(0, 6))
+
+        tk.Button(
+            fila_botones,
+            text="🧹 LIMPIAR",
+            bg="#95a5a6",
+            fg="white",
+            activebackground="#7f8c8d",
+            activeforeground="white",
+            font=("Segoe UI", 10, "bold"),
+            bd=0,
+            height=3,
+            cursor="hand2",
+            command=limpiar_campos
+        ).pack(side="left", fill="x", expand=True, padx=(6, 0))
 
     def ventana_historial(self):
         v = tk.Toplevel(self.root)
