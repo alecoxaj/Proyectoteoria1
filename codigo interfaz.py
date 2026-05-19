@@ -2786,7 +2786,7 @@ class SistemaGestion:
     def ventana_continuar_proyecto(self):
         v = tk.Toplevel(self.root)
         v.title("Continuar Proyecto")
-        v.geometry("1050x680")
+        v.geometry("1080x700")
         v.configure(bg="#eef2f5")
 
         header = tk.Frame(v, bg="#e74c3c", height=78)
@@ -2877,7 +2877,7 @@ class SistemaGestion:
         tabla_frame = tk.Frame(tabla_card, bg="white")
         tabla_frame.pack(fill="both", expand=True)
 
-        cols = ("Tipo", "Nombre / Archivo", "Estado", "Fecha", "UUID")
+        cols = ("ID", "Tipo", "Nombre / Archivo", "Estado", "Fecha", "UUID")
 
         scroll_y = ttk.Scrollbar(tabla_frame, orient="vertical")
         scroll_x = ttk.Scrollbar(tabla_frame, orient="horizontal")
@@ -2896,6 +2896,7 @@ class SistemaGestion:
         for c in cols:
             tree.heading(c, text=c)
 
+        tree.column("ID", width=0, minwidth=0, stretch=False)
         tree.column("Tipo", width=120, anchor="center", stretch=False)
         tree.column("Nombre / Archivo", width=360, anchor="w", stretch=False)
         tree.column("Estado", width=130, anchor="center", stretch=False)
@@ -2933,7 +2934,7 @@ class SistemaGestion:
 
             proy = self.obtener_lista_db(
                 """
-                SELECT 'Proyecto', p.nombre, p.estado, p.fecha_inicio, c.uuid_empresa
+                SELECT p.id_proyecto, 'Proyecto', p.nombre, p.estado, p.fecha_inicio, c.uuid_empresa
                 FROM proyectos p
                 JOIN clientes c ON p.id_cliente = c.id_cliente
                 WHERE c.uuid_empresa LIKE ? OR p.nombre LIKE ? OR c.nombre_empresa LIKE ?
@@ -2943,7 +2944,7 @@ class SistemaGestion:
 
             pub = self.obtener_lista_db(
                 """
-                SELECT 'Publicidad', COALESCE(proyecto, nombre_archivo), estado, fecha, uuid_empresa
+                SELECT id_pub, 'Publicidad', COALESCE(proyecto, nombre_archivo), estado, fecha, uuid_empresa
                 FROM publicidad
                 WHERE uuid_empresa LIKE ? OR nombre_archivo LIKE ? OR proyecto LIKE ?
                 """,
@@ -2964,7 +2965,7 @@ class SistemaGestion:
                     "",
                     "end",
                     values=r,
-                    tags=(etiqueta_estado(r[2]),)
+                    tags=(etiqueta_estado(r[3]),)
                 )
 
             lbl_total.config(text=f"{len(resultados)} resultados")
@@ -2978,54 +2979,107 @@ class SistemaGestion:
 
             return tree.item(item_sel, "values")
 
-        def ejecutar_accion(event=None):
+        def continuar_seleccionado(event=None):
             seleccionado = obtener_seleccion()
 
             if not seleccionado:
                 return
 
-            tipo, nombre, estado, fecha, uuid_e = seleccionado
+            id_registro, tipo, nombre, estado, fecha, uuid_e = seleccionado
 
             if estado == "Finalizado":
                 self.mostrar_vista_previa_final(nombre, tipo)
                 return
 
-            v.destroy()
-
-            if tipo == "Publicidad":
-                self.ventana_publicidad_editor(id_editar=uuid_e)
-            else:
-                messagebox.showinfo(
-                    "Proyecto",
-                    f"Proyecto pendiente:\n\n{nombre}\n\nPuedes editarlo desde el módulo Crear Proyecto."
+            if tipo == "Proyecto":
+                self.ejecutar_db(
+                    """
+                    UPDATE proyectos
+                    SET estado=?
+                    WHERE id_proyecto=?
+                    """,
+                    ("Trabajando", id_registro)
                 )
 
-        def abrir_publicidad():
+                messagebox.showinfo(
+                    "¡Proyecto retomado!",
+                    f"El proyecto '{nombre}' ahora está en estado Trabajando."
+                )
+
+                v.destroy()
+                self.ventana_crear_proyecto(int(id_registro))
+
+            elif tipo == "Publicidad":
+                self.ejecutar_db(
+                    """
+                    UPDATE publicidad
+                    SET estado=?
+                    WHERE id_pub=?
+                    """,
+                    ("Trabajando", id_registro)
+                )
+
+                v.destroy()
+                self.ventana_publicidad_editor(id_pub_editar=int(id_registro))
+
+        def editar_publicidad():
             seleccionado = obtener_seleccion()
 
             if not seleccionado:
                 return
 
-            tipo, nombre, estado, fecha, uuid_e = seleccionado
+            id_registro, tipo, nombre, estado, fecha, uuid_e = seleccionado
 
             if tipo != "Publicidad":
                 messagebox.showwarning(
                     "Atención",
-                    "Selecciona un registro de publicidad."
+                    "Este botón solo abre registros del tipo Publicidad."
                 )
                 return
 
             v.destroy()
-            self.ventana_publicidad_editor(id_editar=uuid_e)
+            self.ventana_publicidad_editor(id_pub_editar=int(id_registro))
 
         def ver_finalizado():
-            seleccionado = obtener_seleccion()
+            for item in tree.get_children():
+                tree.delete(item)
 
-            if not seleccionado:
-                return
+            proy = self.obtener_lista_db(
+                """
+                SELECT p.id_proyecto, 'Proyecto', p.nombre, p.estado, p.fecha_inicio, c.uuid_empresa
+                FROM proyectos p
+                JOIN clientes c ON p.id_cliente = c.id_cliente
+                WHERE p.estado='Finalizado'
+                ORDER BY p.id_proyecto DESC
+                """
+            )
 
-            tipo, nombre, estado, fecha, uuid_e = seleccionado
-            self.mostrar_vista_previa_final(nombre, tipo)
+            pub = self.obtener_lista_db(
+                """
+                SELECT id_pub, 'Publicidad', COALESCE(proyecto, nombre_archivo), estado, fecha, uuid_empresa
+                FROM publicidad
+                WHERE estado='Finalizado'
+                ORDER BY id_pub DESC
+                """
+            )
+
+            resultados = proy + pub
+
+            for r in resultados:
+                tree.insert(
+                    "",
+                    "end",
+                    values=r,
+                    tags=("finalizado",)
+                )
+
+            lbl_total.config(text=f"{len(resultados)} finalizados")
+
+            if not resultados:
+                messagebox.showinfo(
+                    "Finalizados",
+                    "No hay trabajos finalizados registrados."
+                )
 
         def limpiar_busqueda():
             ent_buscar.delete(0, tk.END)
@@ -3051,14 +3105,14 @@ class SistemaGestion:
                 cursor="hand2"
             ).pack(side="left", fill="x", expand=True, padx=5)
 
-        boton_accion("🚀 Continuar seleccionado", "#e74c3c", ejecutar_accion)
-        boton_accion("🎨 Abrir publicidad", "#f39c12", abrir_publicidad)
-        boton_accion("👁 Ver finalizado", "#34495e", ver_finalizado)
+        boton_accion("🚀 Continuar seleccionado", "#e74c3c", continuar_seleccionado)
+        boton_accion("🎨 Editar publicidad", "#f39c12", editar_publicidad)
+        boton_accion("👁 Ver finalizados", "#34495e", ver_finalizado)
         boton_accion("🧹 Limpiar", "#95a5a6", limpiar_busqueda)
 
         ent_buscar.bind("<KeyRelease>", buscar)
-        ent_buscar.bind("<Return>", ejecutar_accion)
-        tree.bind("<Double-1>", ejecutar_accion)
+        ent_buscar.bind("<Return>", continuar_seleccionado)
+        tree.bind("<Double-1>", continuar_seleccionado)
 
         ent_buscar.focus()
 
