@@ -2757,161 +2757,282 @@ class SistemaGestion:
 
     def ventana_continuar_proyecto(self):
         v = tk.Toplevel(self.root)
-        v.title("Panel de Continuidad de Trabajo")
-        v.geometry("950x650")
-        v.configure(bg="#f8f9fa")
+        v.title("Continuar Proyecto")
+        v.geometry("1050x680")
+        v.configure(bg="#eef2f5")
 
-        header_f = tk.Frame(v, bg="#2c3e50", pady=15)
-        header_f.pack(fill="x")
+        header = tk.Frame(v, bg="#e74c3c", height=78)
+        header.pack(fill="x")
+        header.pack_propagate(False)
 
         tk.Label(
-            header_f,
-            text="GESTION DE TRABAJOS PENDIENTES",
+            header,
+            text="🚀 Continuar Proyecto",
+            bg="#e74c3c",
             fg="white",
-            bg="#2c3e50",
-            font=("Segoe UI", 12, "bold")
-        ).pack()
-
-        search_f = tk.Frame(v, bg="#f8f9fa", pady=20)
-        search_f.pack(fill="x")
+            font=("Segoe UI", 20, "bold")
+        ).pack(side="left", padx=28)
 
         tk.Label(
-            search_f,
-            text="Ingrese ID de Empresa o Proyecto:",
-            bg="#f8f9fa",
+            header,
+            text="Retoma trabajos pendientes o revisa resultados finalizados",
+            bg="#e74c3c",
+            fg="#fdecea",
             font=("Segoe UI", 10)
-        ).pack(side="left", padx=(40, 10))
+        ).pack(side="left", padx=8)
 
-        ent_id = tk.Entry(
-            search_f,
-            font=("Consolas", 12),
-            width=30,
-            relief="solid",
-            bd=1
+        contenedor = tk.Frame(v, bg="#eef2f5")
+        contenedor.pack(fill="both", expand=True, padx=22, pady=20)
+
+        barra = tk.Frame(
+            contenedor,
+            bg="white",
+            padx=16,
+            pady=14,
+            highlightthickness=1,
+            highlightbackground="#d8dee4"
         )
-        ent_id.pack(side="left", padx=10)
+        barra.pack(fill="x", pady=(0, 14))
 
-        tree_frame = tk.Frame(v, bg="white", padx=20, pady=10)
-        tree_frame.pack(fill="both", expand=True, padx=30, pady=10)
+        tk.Label(
+            barra,
+            text="Buscar:",
+            bg="white",
+            fg="#2c3e50",
+            font=("Segoe UI", 10, "bold")
+        ).pack(side="left", padx=(0, 8))
+
+        ent_buscar = tk.Entry(
+            barra,
+            font=("Segoe UI", 10),
+            relief="solid",
+            bd=1,
+            width=42
+        )
+        ent_buscar.pack(side="left", ipady=5, padx=(0, 12))
+
+        tk.Label(
+            barra,
+            text="ID empresa, proyecto o archivo",
+            bg="white",
+            fg="#7f8c8d",
+            font=("Segoe UI", 9)
+        ).pack(side="left")
+
+        lbl_total = tk.Label(
+            barra,
+            text="0 resultados",
+            bg="white",
+            fg="#7f8c8d",
+            font=("Segoe UI", 9, "bold")
+        )
+        lbl_total.pack(side="right")
+
+        tabla_card = tk.Frame(
+            contenedor,
+            bg="white",
+            padx=14,
+            pady=14,
+            highlightthickness=1,
+            highlightbackground="#d8dee4"
+        )
+        tabla_card.pack(fill="both", expand=True)
+
+        tk.Label(
+            tabla_card,
+            text="Trabajos encontrados",
+            bg="white",
+            fg="#2c3e50",
+            font=("Segoe UI", 13, "bold")
+        ).pack(anchor="w", pady=(0, 10))
+
+        tabla_frame = tk.Frame(tabla_card, bg="white")
+        tabla_frame.pack(fill="both", expand=True)
 
         cols = ("Tipo", "Nombre / Archivo", "Estado", "Fecha", "UUID")
-        tree = ttk.Treeview(tree_frame, columns=cols, show="headings", height=15)
+
+        scroll_y = ttk.Scrollbar(tabla_frame, orient="vertical")
+        scroll_x = ttk.Scrollbar(tabla_frame, orient="horizontal")
+
+        tree = ttk.Treeview(
+            tabla_frame,
+            columns=cols,
+            show="headings",
+            yscrollcommand=scroll_y.set,
+            xscrollcommand=scroll_x.set
+        )
+
+        scroll_y.config(command=tree.yview)
+        scroll_x.config(command=tree.xview)
 
         for c in cols:
-            tree.heading(c, text=c.upper())
-            tree.column(c, anchor="center", width=120)
+            tree.heading(c, text=c)
 
-        tree.pack(fill="both", expand=True)
+        tree.column("Tipo", width=120, anchor="center", stretch=False)
+        tree.column("Nombre / Archivo", width=360, anchor="w", stretch=False)
+        tree.column("Estado", width=130, anchor="center", stretch=False)
+        tree.column("Fecha", width=140, anchor="center", stretch=False)
+        tree.column("UUID", width=170, anchor="center", stretch=False)
 
-        def buscar(event=None):
-            for i in tree.get_children():
-                tree.delete(i)
+        tree.tag_configure("pendiente", background="#fff7e6")
+        tree.tag_configure("trabajando", background="#eaf4ff")
+        tree.tag_configure("finalizado", background="#eafaf1")
 
-            id_b = ent_id.get().strip()
+        tree.grid(row=0, column=0, sticky="nsew")
+        scroll_y.grid(row=0, column=1, sticky="ns")
+        scroll_x.grid(row=1, column=0, sticky="ew")
 
-            if not id_b:
-                return
+        tabla_frame.grid_rowconfigure(0, weight=1)
+        tabla_frame.grid_columnconfigure(0, weight=1)
+
+        acciones = tk.Frame(contenedor, bg="#eef2f5")
+        acciones.pack(fill="x", pady=(14, 0))
+
+        def etiqueta_estado(estado):
+            estado_l = (estado or "").lower()
+
+            if "finalizado" in estado_l:
+                return "finalizado"
+
+            if "trabajando" in estado_l:
+                return "trabajando"
+
+            return "pendiente"
+
+        def obtener_resultados(filtro):
+            if not filtro:
+                return []
 
             proy = self.obtener_lista_db(
                 """
                 SELECT 'Proyecto', p.nombre, p.estado, p.fecha_inicio, c.uuid_empresa
                 FROM proyectos p
                 JOIN clientes c ON p.id_cliente = c.id_cliente
-                WHERE c.uuid_empresa LIKE ? OR p.nombre LIKE ?
+                WHERE c.uuid_empresa LIKE ? OR p.nombre LIKE ? OR c.nombre_empresa LIKE ?
                 """,
-                (f"%{id_b}%", f"%{id_b}%")
+                (f"%{filtro}%", f"%{filtro}%", f"%{filtro}%")
             )
 
             pub = self.obtener_lista_db(
                 """
-                SELECT 'Publicidad', nombre_archivo, estado, fecha, uuid_empresa
+                SELECT 'Publicidad', COALESCE(proyecto, nombre_archivo), estado, fecha, uuid_empresa
                 FROM publicidad
-                WHERE uuid_empresa LIKE ? OR nombre_archivo LIKE ?
+                WHERE uuid_empresa LIKE ? OR nombre_archivo LIKE ? OR proyecto LIKE ?
                 """,
-                (f"%{id_b}%", f"%{id_b}%")
+                (f"%{filtro}%", f"%{filtro}%", f"%{filtro}%")
             )
 
-            for r in proy + pub:
-                tree.insert("", "end", values=r)
+            return proy + pub
 
-        def ejecutar_accion(event):
+        def buscar(event=None):
+            for item in tree.get_children():
+                tree.delete(item)
+
+            filtro = ent_buscar.get().strip()
+            resultados = obtener_resultados(filtro)
+
+            for r in resultados:
+                tree.insert(
+                    "",
+                    "end",
+                    values=r,
+                    tags=(etiqueta_estado(r[2]),)
+                )
+
+            lbl_total.config(text=f"{len(resultados)} resultados")
+
+        def obtener_seleccion():
             item_sel = tree.selection()
 
             if not item_sel:
+                messagebox.showwarning("Atención", "Selecciona un registro.")
+                return None
+
+            return tree.item(item_sel, "values")
+
+        def ejecutar_accion(event=None):
+            seleccionado = obtener_seleccion()
+
+            if not seleccionado:
                 return
 
-            tipo, nombre, estado, fecha, uuid_e = tree.item(item_sel, "values")
+            tipo, nombre, estado, fecha, uuid_e = seleccionado
 
             if estado == "Finalizado":
                 self.mostrar_vista_previa_final(nombre, tipo)
+                return
+
+            v.destroy()
+
+            if tipo == "Publicidad":
+                self.ventana_publicidad_editor(id_editar=uuid_e)
             else:
-                v.destroy()
+                messagebox.showinfo(
+                    "Proyecto",
+                    f"Proyecto pendiente:\n\n{nombre}\n\nPuedes editarlo desde el módulo Crear Proyecto."
+                )
 
-                if tipo == "Publicidad":
-                    self.ventana_publicidad_editor(id_editar=uuid_e)
-                else:
-                    messagebox.showinfo(
-                        "Proyectos",
-                        f"Redirigiendo al modulo de Proyectos para: {nombre}"
-                    )
+        def abrir_publicidad():
+            seleccionado = obtener_seleccion()
 
-        ent_id.bind("<KeyRelease>", buscar)
+            if not seleccionado:
+                return
+
+            tipo, nombre, estado, fecha, uuid_e = seleccionado
+
+            if tipo != "Publicidad":
+                messagebox.showwarning(
+                    "Atención",
+                    "Selecciona un registro de publicidad."
+                )
+                return
+
+            v.destroy()
+            self.ventana_publicidad_editor(id_editar=uuid_e)
+
+        def ver_finalizado():
+            seleccionado = obtener_seleccion()
+
+            if not seleccionado:
+                return
+
+            tipo, nombre, estado, fecha, uuid_e = seleccionado
+            self.mostrar_vista_previa_final(nombre, tipo)
+
+        def limpiar_busqueda():
+            ent_buscar.delete(0, tk.END)
+
+            for item in tree.get_children():
+                tree.delete(item)
+
+            lbl_total.config(text="0 resultados")
+            ent_buscar.focus()
+
+        def boton_accion(texto, color, comando):
+            tk.Button(
+                acciones,
+                text=texto,
+                command=comando,
+                bg=color,
+                fg="white",
+                activebackground=color,
+                activeforeground="white",
+                font=("Segoe UI", 10, "bold"),
+                bd=0,
+                height=2,
+                cursor="hand2"
+            ).pack(side="left", fill="x", expand=True, padx=5)
+
+        boton_accion("🚀 Continuar seleccionado", "#e74c3c", ejecutar_accion)
+        boton_accion("🎨 Abrir publicidad", "#f39c12", abrir_publicidad)
+        boton_accion("👁 Ver finalizado", "#34495e", ver_finalizado)
+        boton_accion("🧹 Limpiar", "#95a5a6", limpiar_busqueda)
+
+        ent_buscar.bind("<KeyRelease>", buscar)
+        ent_buscar.bind("<Return>", ejecutar_accion)
         tree.bind("<Double-1>", ejecutar_accion)
 
-        tk.Label(
-            v,
-            text="Tip: Doble clic sobre un registro para continuar editando o ver resultado.",
-            fg="#7f8c8d",
-            bg="#f8f9fa",
-            font=("Segoe UI", 9, "italic")
-        ).pack(pady=10)
-
-    def mostrar_vista_previa_final(self, nombre_recurso, tipo):
-        vf = tk.Toplevel(self.root)
-        vf.title(f"Resultado Final - {nombre_recurso}")
-        vf.geometry("600x500")
-        vf.configure(bg="white")
-
-        tk.Label(
-            vf,
-            text=f"ARCHIVO FINALIZADO: {nombre_recurso}",
-            font=("Segoe UI", 12, "bold"),
-            bg="white",
-            pady=20
-        ).pack()
-
-        canvas_preview = tk.Canvas(
-            vf,
-            bg="#f1f2f6",
-            width=500,
-            height=350,
-            highlightthickness=0
-        )
-        canvas_preview.pack(pady=10)
-
-        if tipo == "Publicidad" and nombre_recurso and os.path.exists(nombre_recurso):
-            img = Image.open(nombre_recurso)
-            img.thumbnail((500, 350))
-            self.img_preview_final = ImageTk.PhotoImage(img)
-            canvas_preview.create_image(250, 175, image=self.img_preview_final)
-        else:
-            canvas_preview.create_text(
-                250,
-                175,
-                text="[ VISTA PREVIA DEL TRABAJO ]\n(Imagen cargada desde base de datos)",
-                justify="center",
-                fill="#95a5a6"
-            )
-
-        tk.Button(
-            vf,
-            text="CERRAR VISTA",
-            command=vf.destroy,
-            bg="#e74c3c",
-            fg="white",
-            relief="flat",
-            width=20
-        ).pack(pady=10)
+        ent_buscar.focus()
 
     def ventana_comunicacion(self):
         v = tk.Toplevel(self.root)
