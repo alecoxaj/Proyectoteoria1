@@ -450,7 +450,7 @@ class SistemaGestion:
 
         tk.Label(
             tabla_card,
-            text="Seleccione un registro",
+            text="Selecciona un registro",
             bg="white",
             fg="#2c3e50",
             font=("Segoe UI", 13, "bold")
@@ -1557,107 +1557,222 @@ class SistemaGestion:
 
     def ventana_historial(self):
         v = tk.Toplevel(self.root)
-        v.title("Historial de Proyectos")
-        v.geometry("1100x750")
-        v.configure(bg="#f4f7f6")
+        v.title("Historial de Proyecto y Empresas")
+        v.geometry("1120x720")
+        v.configure(bg="#eef2f5")
 
-        frame_busqueda = tk.Frame(v, bg="#34495e", pady=15)
-        frame_busqueda.pack(fill="x")
-
-        tk.Label(
-            frame_busqueda,
-            text="BUSCAR POR ID:",
-            fg="white",
-            bg="#34495e",
-            font=("Segoe UI", 9, "bold")
-        ).pack(side="left", padx=(20, 5))
-
-        ent_id_busq = tk.Entry(frame_busqueda, font=("Consolas", 11), width=15)
-        ent_id_busq.pack(side="left", padx=10)
+        header = tk.Frame(v, bg="#9b59b6", height=78)
+        header.pack(fill="x")
+        header.pack_propagate(False)
 
         tk.Label(
-            frame_busqueda,
-            text="NOMBRE PROYECTO:",
+            header,
+            text="📋 Historial",
+            bg="#9b59b6",
             fg="white",
-            bg="#34495e",
-            font=("Segoe UI", 9, "bold")
-        ).pack(side="left", padx=(20, 5))
+            font=("Segoe UI", 20, "bold")
+        ).pack(side="left", padx=28)
 
-        ent_nom_busq = tk.Entry(frame_busqueda, font=("Segoe UI", 11), width=20)
-        ent_nom_busq.pack(side="left", padx=10)
+        tk.Label(
+            header,
+            text="Consulta empresas y proyectos registrados",
+            bg="#9b59b6",
+            fg="#f4e9fb",
+            font=("Segoe UI", 10)
+        ).pack(side="left", padx=8)
 
-        cuerpo = tk.Frame(
-            v,
+        contenedor = tk.Frame(v, bg="#eef2f5")
+        contenedor.pack(fill="both", expand=True, padx=22, pady=20)
+
+        filtros = tk.Frame(
+            contenedor,
             bg="white",
-            padx=20,
-            pady=20,
+            padx=16,
+            pady=14,
             highlightthickness=1,
-            highlightbackground="#dee2e6"
+            highlightbackground="#d8dee4"
         )
-        cuerpo.pack(expand=True, fill="both", padx=20, pady=20)
+        filtros.pack(fill="x", pady=(0, 14))
 
         tk.Label(
-            cuerpo,
-            text="DIRECTORIO DE EMPRESAS",
-            font=("Segoe UI", 11, "bold"),
+            filtros,
+            text="Buscar por ID:",
             bg="white",
-            fg="#3498db"
-        ).pack()
+            fg="#2c3e50",
+            font=("Segoe UI", 10, "bold")
+        ).pack(side="left", padx=(0, 8))
+
+        ent_id_busq = tk.Entry(
+            filtros,
+            font=("Consolas", 10),
+            relief="solid",
+            bd=1,
+            width=20
+        )
+        ent_id_busq.pack(side="left", ipady=5, padx=(0, 18))
+
+        tk.Label(
+            filtros,
+            text="Proyecto:",
+            bg="white",
+            fg="#2c3e50",
+            font=("Segoe UI", 10, "bold")
+        ).pack(side="left", padx=(0, 8))
+
+        ent_nom_busq = tk.Entry(
+            filtros,
+            font=("Segoe UI", 10),
+            relief="solid",
+            bd=1,
+            width=30
+        )
+        ent_nom_busq.pack(side="left", ipady=5, padx=(0, 18))
+
+        lbl_resumen = tk.Label(
+            filtros,
+            text="0 empresas · 0 proyectos",
+            bg="white",
+            fg="#7f8c8d",
+            font=("Segoe UI", 9, "bold")
+        )
+        lbl_resumen.pack(side="right")
+
+        cuerpo = tk.Frame(contenedor, bg="#eef2f5")
+        cuerpo.pack(fill="both", expand=True)
+
+        panel_empresas = tk.Frame(
+            cuerpo,
+            bg="white",
+            padx=14,
+            pady=14,
+            highlightthickness=1,
+            highlightbackground="#d8dee4"
+        )
+        panel_empresas.pack(side="left", fill="both", expand=True, padx=(0, 8))
+
+        panel_proyectos = tk.Frame(
+            cuerpo,
+            bg="white",
+            padx=14,
+            pady=14,
+            highlightthickness=1,
+            highlightbackground="#d8dee4"
+        )
+        panel_proyectos.pack(side="right", fill="both", expand=True, padx=(8, 0))
+
+        tk.Label(
+            panel_empresas,
+            text="Empresas",
+            bg="white",
+            fg="#2c3e50",
+            font=("Segoe UI", 13, "bold")
+        ).pack(anchor="w", pady=(0, 10))
+
+        frame_empresas = tk.Frame(panel_empresas, bg="white")
+        frame_empresas.pack(fill="both", expand=True)
 
         cols_c = ("Empresa", "ID Personal")
+
+        scroll_c_y = ttk.Scrollbar(frame_empresas, orient="vertical")
+        scroll_c_x = ttk.Scrollbar(frame_empresas, orient="horizontal")
+
         tree_clientes = ttk.Treeview(
-            cuerpo,
+            frame_empresas,
             columns=cols_c,
             show="headings",
-            height=5
+            yscrollcommand=scroll_c_y.set,
+            xscrollcommand=scroll_c_x.set
         )
 
-        for col in cols_c:
-            tree_clientes.heading(col, text=col)
+        scroll_c_y.config(command=tree_clientes.yview)
+        scroll_c_x.config(command=tree_clientes.xview)
 
-        tree_clientes.pack(fill="x", pady=10)
+        tree_clientes.heading("Empresa", text="Empresa")
+        tree_clientes.heading("ID Personal", text="ID Personal")
+
+        tree_clientes.column("Empresa", width=260, anchor="w", stretch=False)
+        tree_clientes.column("ID Personal", width=170, anchor="center", stretch=False)
+
+        tree_clientes.grid(row=0, column=0, sticky="nsew")
+        scroll_c_y.grid(row=0, column=1, sticky="ns")
+        scroll_c_x.grid(row=1, column=0, sticky="ew")
+
+        frame_empresas.grid_rowconfigure(0, weight=1)
+        frame_empresas.grid_columnconfigure(0, weight=1)
 
         tk.Label(
-            cuerpo,
-            text="REGISTROS DE PROYECTOS",
-            font=("Segoe UI", 10, "bold"),
+            panel_proyectos,
+            text="Proyectos",
             bg="white",
-            fg="#2c3e50"
-        ).pack(pady=(10, 5))
+            fg="#2c3e50",
+            font=("Segoe UI", 13, "bold")
+        ).pack(anchor="w", pady=(0, 10))
+
+        frame_proyectos = tk.Frame(panel_proyectos, bg="white")
+        frame_proyectos.pack(fill="both", expand=True)
 
         cols_p = ("Proyecto", "Fecha Inicio", "Estado", "Empresa Relacionada")
 
+        scroll_p_y = ttk.Scrollbar(frame_proyectos, orient="vertical")
+        scroll_p_x = ttk.Scrollbar(frame_proyectos, orient="horizontal")
+
         tree_proyectos = ttk.Treeview(
-            cuerpo,
+            frame_proyectos,
             columns=cols_p,
-            show="headings"
+            show="headings",
+            yscrollcommand=scroll_p_y.set,
+            xscrollcommand=scroll_p_x.set
         )
+
+        scroll_p_y.config(command=tree_proyectos.yview)
+        scroll_p_x.config(command=tree_proyectos.xview)
 
         for col in cols_p:
             tree_proyectos.heading(col, text=col)
 
-        tree_proyectos.pack(expand=True, fill="both")
+        tree_proyectos.column("Proyecto", width=240, anchor="w", stretch=False)
+        tree_proyectos.column("Fecha Inicio", width=120, anchor="center", stretch=False)
+        tree_proyectos.column("Estado", width=120, anchor="center", stretch=False)
+        tree_proyectos.column("Empresa Relacionada", width=240, anchor="w", stretch=False)
+
+        tree_proyectos.grid(row=0, column=0, sticky="nsew")
+        scroll_p_y.grid(row=0, column=1, sticky="ns")
+        scroll_p_x.grid(row=1, column=0, sticky="ew")
+
+        frame_proyectos.grid_rowconfigure(0, weight=1)
+        frame_proyectos.grid_columnconfigure(0, weight=1)
+
+        acciones = tk.Frame(contenedor, bg="#eef2f5")
+        acciones.pack(fill="x", pady=(14, 0))
 
         def actualizar_tablas(event=None):
             for i in tree_clientes.get_children():
                 tree_clientes.delete(i)
 
-            id_busc = ent_id_busq.get().strip()
-
-            query_c = "SELECT nombre_empresa, uuid_empresa FROM clientes"
-            params_c = ()
-
-            if id_busc:
-                query_c += " WHERE uuid_empresa LIKE ?"
-                params_c = (f"%{id_busc}%",)
-
-            for d in self.obtener_lista_db(query_c, params_c):
-                tree_clientes.insert("", "end", values=d)
-
             for i in tree_proyectos.get_children():
                 tree_proyectos.delete(i)
 
+            id_busc = ent_id_busq.get().strip()
             nom_busc = ent_nom_busq.get().strip()
+
+            query_c = """
+                SELECT nombre_empresa, uuid_empresa
+                FROM clientes
+                WHERE 1=1
+            """
+            params_c = []
+
+            if id_busc:
+                query_c += " AND uuid_empresa LIKE ?"
+                params_c.append(f"%{id_busc}%")
+
+            query_c += " ORDER BY nombre_empresa"
+
+            total_empresas = 0
+
+            for d in self.obtener_lista_db(query_c, tuple(params_c)):
+                tree_clientes.insert("", "end", values=d)
+                total_empresas += 1
 
             query_p = """
                 SELECT p.nombre, p.fecha_inicio, p.estado, c.nombre_empresa
@@ -1676,10 +1791,19 @@ class SistemaGestion:
                 query_p += " AND p.nombre LIKE ?"
                 params_p.append(f"%{nom_busc}%")
 
+            query_p += " ORDER BY p.id_proyecto DESC"
+
+            total_proyectos = 0
+
             for p in self.obtener_lista_db(query_p, tuple(params_p)):
                 tree_proyectos.insert("", "end", values=p)
+                total_proyectos += 1
 
-        def al_seleccionar_cliente(event):
+            lbl_resumen.config(
+                text=f"{total_empresas} empresas · {total_proyectos} proyectos"
+            )
+
+        def al_seleccionar_cliente(event=None):
             item = tree_clientes.selection()
 
             if item:
@@ -1687,6 +1811,42 @@ class SistemaGestion:
                 ent_id_busq.delete(0, tk.END)
                 ent_id_busq.insert(0, uuid_sel)
                 actualizar_tablas()
+
+        def limpiar_filtros():
+            ent_id_busq.delete(0, tk.END)
+            ent_nom_busq.delete(0, tk.END)
+            actualizar_tablas()
+
+        def copiar_id():
+            item = tree_clientes.selection()
+
+            if not item:
+                messagebox.showwarning("Atención", "Selecciona una empresa.")
+                return
+
+            uuid_sel = tree_clientes.item(item)["values"][1]
+            v.clipboard_clear()
+            v.clipboard_append(uuid_sel)
+            messagebox.showinfo("Copiado", f"ID copiado:\n{uuid_sel}")
+
+        def boton_accion(texto, color, comando):
+            tk.Button(
+                acciones,
+                text=texto,
+                command=comando,
+                bg=color,
+                fg="white",
+                activebackground=color,
+                activeforeground="white",
+                font=("Segoe UI", 10, "bold"),
+                bd=0,
+                height=2,
+                cursor="hand2"
+            ).pack(side="left", fill="x", expand=True, padx=5)
+
+        boton_accion("📋 Copiar ID", "#34495e", copiar_id)
+        boton_accion("🧹 Limpiar filtros", "#95a5a6", limpiar_filtros)
+        boton_accion("🔄 Actualizar", "#3498db", actualizar_tablas)
 
         ent_id_busq.bind("<KeyRelease>", actualizar_tablas)
         ent_nom_busq.bind("<KeyRelease>", actualizar_tablas)
