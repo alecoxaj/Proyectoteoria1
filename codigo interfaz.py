@@ -2481,7 +2481,7 @@ class SistemaGestion:
     def ventana_pagos(self, id_pago_editar=None):
         vp = tk.Toplevel(self.root)
         vp.title("Registro de Pagos")
-        vp.geometry("520x650")
+        vp.geometry("520x620")
         vp.configure(bg="#eef2f5")
         vp.resizable(False, False)
 
@@ -2499,8 +2499,9 @@ class SistemaGestion:
             datos_editar = datos[0] if datos else None
 
         fecha_real = datos_editar[4] if datos_editar else datetime.now().strftime("%d/%m/%Y %H:%M")
+        titulo_formulario = "Editar comprobante de pago" if id_pago_editar else "Nuevo comprobante de pago"
 
-        header = tk.Frame(vp, bg="#e67e22", height=82)
+        header = tk.Frame(vp, bg="#e67e22", height=70)
         header.pack(fill="x")
         header.pack_propagate(False)
 
@@ -2509,28 +2510,34 @@ class SistemaGestion:
             text="💰 Registro de Pagos",
             bg="#e67e22",
             fg="white",
-            font=("Segoe UI", 20, "bold")
-        ).pack(side="left", padx=28)
-
-        subtitulo = "Editar comprobante de pago" if id_pago_editar else "Nuevo comprobante de pago"
-
-        tk.Label(
-            header,
-            text=subtitulo,
-            bg="#e67e22",
-            fg="#fff3e0",
-            font=("Segoe UI", 10)
-        ).pack(side="left", padx=8)
+            font=("Segoe UI", 19, "bold")
+        ).pack(side="left", padx=26)
 
         contenedor = tk.Frame(
             vp,
             bg="white",
-            padx=32,
-            pady=26,
+            padx=28,
+            pady=18,
             highlightthickness=1,
             highlightbackground="#d8dee4"
         )
-        contenedor.pack(fill="both", expand=True, padx=28, pady=26)
+        contenedor.pack(fill="both", expand=True, padx=24, pady=20)
+
+        tk.Label(
+            contenedor,
+            text=titulo_formulario,
+            bg="white",
+            fg="#2c3e50",
+            font=("Segoe UI", 15, "bold")
+        ).pack(anchor="w", pady=(0, 2))
+
+        tk.Label(
+            contenedor,
+            text="Completa los datos del pago recibido.",
+            bg="white",
+            fg="#7f8c8d",
+            font=("Segoe UI", 9)
+        ).pack(anchor="w", pady=(0, 12))
 
         def etiqueta(texto):
             tk.Label(
@@ -2538,24 +2545,24 @@ class SistemaGestion:
                 text=texto,
                 bg="white",
                 fg="#2c3e50",
-                font=("Segoe UI", 10, "bold")
+                font=("Segoe UI", 9, "bold")
             ).pack(anchor="w")
 
         def campo_entry():
             entrada = tk.Entry(
                 contenedor,
-                font=("Segoe UI", 11),
+                font=("Segoe UI", 10),
                 relief="solid",
                 bd=1
             )
-            entrada.pack(fill="x", pady=(6, 16), ipady=6)
+            entrada.pack(fill="x", pady=(4, 10), ipady=4)
             return entrada
 
         etiqueta("Fecha de pago:")
         lbl_fecha = tk.Label(
             contenedor,
             text=fecha_real,
-            font=("Consolas", 11, "bold"),
+            font=("Consolas", 10, "bold"),
             bg="#f4f6f8",
             fg="#2c3e50",
             relief="solid",
@@ -2563,7 +2570,7 @@ class SistemaGestion:
             anchor="w",
             padx=10
         )
-        lbl_fecha.pack(fill="x", pady=(6, 18), ipady=8)
+        lbl_fecha.pack(fill="x", pady=(4, 12), ipady=6)
 
         etiqueta("ID Empresa (UUID):")
         ent_uuid = campo_entry()
@@ -2574,7 +2581,7 @@ class SistemaGestion:
             state="readonly",
             font=("Segoe UI", 10)
         )
-        cb_proy.pack(fill="x", pady=(6, 16), ipady=5)
+        cb_proy.pack(fill="x", pady=(4, 10), ipady=4)
 
         def cargar_proyectos(event=None):
             res = self.obtener_lista_db(
@@ -2608,7 +2615,7 @@ class SistemaGestion:
             font=("Segoe UI", 10)
         )
         cb_tipo.current(0)
-        cb_tipo.pack(fill="x", pady=(6, 20), ipady=5)
+        cb_tipo.pack(fill="x", pady=(4, 14), ipady=4)
 
         if datos_editar:
             ent_uuid.insert(0, datos_editar[0])
@@ -2618,7 +2625,7 @@ class SistemaGestion:
             cb_tipo.set(datos_editar[3])
 
         botones = tk.Frame(contenedor, bg="white")
-        botones.pack(fill="x", pady=(10, 0))
+        botones.pack(fill="x", pady=(4, 0))
 
         def editar_existente():
             seleccionado = self.seleccionar_registro(
@@ -2702,31 +2709,32 @@ class SistemaGestion:
 
         tk.Button(
             botones,
-            text="💾 GUARDAR CAMBIOS" if id_pago_editar else "💾 CONFIRMAR PAGO",
+            text="💾 CONFIRMAR" if not id_pago_editar else "💾 GUARDAR",
             bg="#e67e22",
             fg="white",
             activebackground="#d35400",
             activeforeground="white",
-            font=("Segoe UI", 10, "bold"),
+            font=("Segoe UI", 9, "bold"),
             bd=0,
             height=2,
             cursor="hand2",
             command=guardar_pago
-        ).pack(fill="x", pady=(0, 10))
+        ).pack(side="left", fill="x", expand=True, padx=(0, 5))
 
         tk.Button(
             botones,
-            text="✏️ EDITAR PAGO EXISTENTE",
+            text="✏️ EDITAR",
             bg="#3498db",
             fg="white",
             activebackground="#2980b9",
             activeforeground="white",
-            font=("Segoe UI", 10, "bold"),
+            font=("Segoe UI", 9, "bold"),
             bd=0,
             height=2,
             cursor="hand2",
             command=editar_existente
-        ).pack(fill="x")
+        ).pack(side="left", fill="x", expand=True, padx=(5, 0))
+
     def ventana_facturas(self):
         vf = tk.Toplevel(self.root)
         vf.title("Historial de Facturacion")
