@@ -3,6 +3,8 @@ from tkinter import ttk, messagebox, filedialog
 import sqlite3
 import os
 import uuid
+import shutil
+import zipfile
 from datetime import datetime
 from tkcalendar import DateEntry
 from PIL import Image, ImageTk, ImageOps
@@ -10,9 +12,8 @@ from PIL import Image, ImageTk, ImageOps
 
 class SistemaGestion:
     def __init__(self, root):
-
         self.root = root
-        self.root.title("Espacio Creativo v3.0 - Gestión Pro")
+        self.root.title("Espacio Creativo v3.0 - Gestion Pro")
         self.root.geometry("1200x850")
 
         self.modo_oscuro = False
@@ -104,6 +105,17 @@ class SistemaGestion:
         """)
 
         c.execute("""
+        CREATE TABLE IF NOT EXISTS egresos (
+            id_egreso INTEGER PRIMARY KEY AUTOINCREMENT,
+            concepto TEXT NOT NULL,
+            categoria TEXT,
+            monto REAL NOT NULL,
+            fecha TEXT NOT NULL,
+            nota TEXT
+        )
+        """)
+
+        c.execute("""
         INSERT OR IGNORE INTO usuarios
         (nombre_completo, usuario_login, password, rol)
         VALUES (?, ?, ?, ?)
@@ -117,6 +129,11 @@ class SistemaGestion:
 
         conn.commit()
         conn.close()
+
+        try:
+            self.crear_respaldo_automatico()
+        except Exception:
+            pass
 
     def configurar_estilos(self):
         style = ttk.Style()
@@ -177,8 +194,8 @@ class SistemaGestion:
     def mostrar_soporte(self):
         self.cerrar_menus_usuario()
         messagebox.showinfo(
-            "Soporte Técnico",
-            "Contáctanos al:\n\n"
+            "Soporte Tecnico",
+            "Contactanos al:\n\n"
             "Correo: soporte@espaciocreativo.com\n"
             "Tel: +502 4560-7604, +502 4135-7899, +502 3067-8267"
         )
@@ -226,7 +243,7 @@ class SistemaGestion:
         if flecha:
             tk.Label(
                 item,
-                text="›",
+                text=">",
                 bg="white",
                 fg="#7f8c8d",
                 font=("Segoe UI", 16, "bold")
@@ -306,7 +323,6 @@ class SistemaGestion:
             f"Modo Oscuro {oscuro_check}",
             lambda: self.aplicar_tema(True)
         )
-
     def mostrar_menu_usuario(self, boton):
         if self.menu_usuario_popup and self.menu_usuario_popup.winfo_exists():
             self.cerrar_menus_usuario()
@@ -390,7 +406,7 @@ class SistemaGestion:
         def aceptar(event=None):
             item = tree.selection()
             if not item:
-                messagebox.showwarning("Atención", "Seleccione un registro.")
+                messagebox.showwarning("Atención", "Selecciona un registro.")
                 return
 
             seleccion["values"] = tree.item(item, "values")
@@ -499,7 +515,7 @@ class SistemaGestion:
             confirmar = ent_confirmar.get().strip()
 
             if not usuario_login:
-                messagebox.showwarning("Atención", "Seleccione un usuario.")
+                messagebox.showwarning("Atención", "Selecciona un usuario.")
                 return
 
             if not nueva or not confirmar:
@@ -744,6 +760,36 @@ class SistemaGestion:
 
         tk.Button(
             header,
+            text="🛡 Respaldo",
+            bg="#34495e",
+            fg="white",
+            activebackground="#2c3e50",
+            activeforeground="white",
+            font=("Segoe UI", 10, "bold"),
+            bd=0,
+            padx=15,
+            pady=8,
+            cursor="hand2",
+            command=self.ventana_respaldos
+        ).place(relx=0.34, rely=0.5, anchor="center")
+
+        tk.Button(
+            header,
+            text="📊 Reportes",
+            bg="#16a085",
+            fg="white",
+            activebackground="#138d75",
+            activeforeground="white",
+            font=("Segoe UI", 10, "bold"),
+            bd=0,
+            padx=15,
+            pady=8,
+            cursor="hand2",
+            command=self.ventana_reportes_financieros
+        ).place(relx=0.46, rely=0.5, anchor="center")
+
+        tk.Button(
+            header,
             text="📬 Mensajes",
             bg="#e74c3c",
             fg="white",
@@ -755,7 +801,7 @@ class SistemaGestion:
             pady=8,
             cursor="hand2",
             command=self.ventana_comunicacion
-        ).place(relx=0.58, rely=0.5, anchor="center")
+        ).place(relx=0.59, rely=0.5, anchor="center")
 
         contenedor = tk.Frame(self.root, bg=self.color_fondo)
         contenedor.pack(expand=True, fill="both")
@@ -858,19 +904,19 @@ class SistemaGestion:
         f = tk.Frame(v, bg="white", padx=40)
         f.pack(fill="both")
 
-        tk.Label(f, text="🏢  Nombre de la Empresa:", bg="white").pack(anchor="w")
+        tk.Label(f, text="Nombre de la Empresa:", bg="white").pack(anchor="w")
         nom_e = tk.Entry(f, relief="solid", bd=1)
         nom_e.pack(fill="x", pady=(5, 15))
 
-        tk.Label(f, text="📞  Número Telefónico Referido:", bg="white").pack(anchor="w")
+        tk.Label(f, text="Numero Telefonico Referido:", bg="white").pack(anchor="w")
         tel_e = tk.Entry(f, relief="solid", bd=1)
         tel_e.pack(fill="x", pady=(5, 15))
 
-        tk.Label(f, text="✉️  Correo Electrónico:", bg="white").pack(anchor="w")
+        tk.Label(f, text="Correo Electronico:", bg="white").pack(anchor="w")
         cor_e = tk.Entry(f, relief="solid", bd=1)
         cor_e.pack(fill="x", pady=(5, 15))
 
-        tk.Label(f, text="📍  Dirección de la Empresa:", bg="white").pack(anchor="w")
+        tk.Label(f, text="Direccion de la Empresa:", bg="white").pack(anchor="w")
         dir_e = tk.Entry(f, relief="solid", bd=1)
         dir_e.pack(fill="x", pady=(5, 30))
 
@@ -900,7 +946,7 @@ class SistemaGestion:
 
             if not nombre:
                 messagebox.showwarning(
-                    "Atención",
+                    "Atencion",
                     "El nombre de la empresa es obligatorio."
                 )
                 return
@@ -917,7 +963,7 @@ class SistemaGestion:
             if existe:
                 messagebox.showerror(
                     "Error",
-                    f"La empresa '{nombre}' ya está registrada."
+                    f"La empresa '{nombre}' ya esta registrada."
                 )
                 return
 
@@ -939,7 +985,7 @@ class SistemaGestion:
                     )
 
                     messagebox.showinfo(
-                        "Éxito",
+                        "Exito",
                         "Empresa actualizada correctamente."
                     )
                 else:
@@ -961,7 +1007,7 @@ class SistemaGestion:
                     )
 
                     messagebox.showinfo(
-                        "Éxito",
+                        "Exito",
                         f"Empresa registrada.\nID PERSONAL: {id_personal}"
                     )
 
@@ -1133,7 +1179,7 @@ class SistemaGestion:
                     )
 
                     messagebox.showinfo(
-                        "Éxito",
+                        "Exito",
                         "Proyecto actualizado correctamente."
                     )
                 else:
@@ -1152,7 +1198,7 @@ class SistemaGestion:
                     )
 
                     messagebox.showinfo(
-                        "Éxito",
+                        "Exito",
                         "Proyecto guardado correctamente."
                     )
 
@@ -1196,7 +1242,7 @@ class SistemaGestion:
 
         tk.Label(
             frame_busqueda,
-            text="🆔 BUSCAR POR ID:",
+            text="BUSCAR POR ID:",
             fg="white",
             bg="#34495e",
             font=("Segoe UI", 9, "bold")
@@ -1207,7 +1253,7 @@ class SistemaGestion:
 
         tk.Label(
             frame_busqueda,
-            text="📂 NOMBRE PROYECTO:",
+            text="NOMBRE PROYECTO:",
             fg="white",
             bg="#34495e",
             font=("Segoe UI", 9, "bold")
@@ -1249,7 +1295,7 @@ class SistemaGestion:
 
         tk.Label(
             cuerpo,
-            text="▼ REGISTROS DE PROYECTOS ▼",
+            text="REGISTROS DE PROYECTOS",
             font=("Segoe UI", 10, "bold"),
             bg="white",
             fg="#2c3e50"
@@ -1331,7 +1377,7 @@ class SistemaGestion:
 
         tk.Label(
             v,
-            text="🆔 DIRECTORIO DE IDENTIFICADORES",
+            text="DIRECTORIO DE IDENTIFICADORES",
             font=("Segoe UI", 14, "bold"),
             pady=20
         ).pack()
@@ -1354,65 +1400,311 @@ class SistemaGestion:
             tree.insert("", "end", values=d)
 
     def ventana_publicidad_editor(self, id_editar=None, id_pub_editar=None):
+
         v = tk.Toplevel(self.root)
-        v.title("Editor de Publicidad")
-        v.geometry("1000x790")
-        v.configure(bg="#2c3e50")
+        v.title("Editor Profesional de Publicidad")
+        v.geometry("1280x820")
+        v.configure(bg="#edf2f7")
+        v.minsize(1180, 760)
 
         self.img_original = None
         self.img_tk = None
         self.path_actual = ""
 
-        panel_datos = tk.Frame(v, bg="white", pady=10)
-        panel_datos.pack(fill="x")
+        historial_imagenes = []
+
+        # =====================================================
+        # HEADER
+        # =====================================================
+
+        header = tk.Frame(
+            v,
+            bg="#1e293b",
+            height=75
+        )
+
+        header.pack(fill="x")
+        header.pack_propagate(False)
 
         tk.Label(
-            panel_datos,
-            text="ID Empresa (UUID):",
-            bg="white"
-        ).pack(side="left", padx=5)
+            header,
+            text="🎨 Editor Profesional de Publicidad",
+            bg="#1e293b",
+            fg="white",
+            font=("Segoe UI", 20, "bold")
+        ).pack(side="left", padx=25)
+
+        tk.Label(
+            header,
+            text="Diseño • Transparencia • Recorte • Impresión",
+            bg="#1e293b",
+            fg="#cbd5e1",
+            font=("Segoe UI", 10)
+        ).pack(side="left")
+
+        # =====================================================
+        # CONTENEDOR PRINCIPAL
+        # =====================================================
+
+        main = tk.Frame(v, bg="#edf2f7")
+        main.pack(fill="both", expand=True, padx=18, pady=18)
+
+        # =====================================================
+        # PANEL IZQUIERDO
+        # =====================================================
+
+        panel = tk.Frame(
+            main,
+            bg="white",
+            width=360,
+            padx=16,
+            pady=16,
+            highlightthickness=1,
+            highlightbackground="#dbe2ea"
+        )
+
+        panel.pack(side="left", fill="y", padx=(0, 16))
+        panel.pack_propagate(False)
+
+        # =====================================================
+        # VISOR
+        # =====================================================
+
+        visor_frame = tk.Frame(
+            main,
+            bg="white",
+            padx=14,
+            pady=14,
+            highlightthickness=1,
+            highlightbackground="#dbe2ea"
+        )
+
+        visor_frame.pack(side="right", fill="both", expand=True)
+
+        canvas = tk.Canvas(
+            visor_frame,
+            bg="#f8fafc",
+            highlightthickness=0
+        )
+
+        canvas.pack(fill="both", expand=True)
+
+        # =====================================================
+        # ESTILOS
+        # =====================================================
+
+        def titulo(txt):
+
+            tk.Label(
+                panel,
+                text=txt,
+                bg="white",
+                fg="#1e293b",
+                font=("Segoe UI", 11, "bold")
+            ).pack(anchor="w", pady=(0, 7))
+
+        def separador():
+
+            tk.Frame(
+                panel,
+                bg="#e2e8f0",
+                height=1
+            ).pack(fill="x", pady=12)
+
+        def boton_estilo(master, texto, color, comando):
+
+            return tk.Button(
+                master,
+                text=texto,
+                command=comando,
+                bg=color,
+                fg="white",
+                activebackground=color,
+                activeforeground="white",
+                relief="flat",
+                bd=0,
+                cursor="hand2",
+                font=("Segoe UI", 9, "bold"),
+                height=2,
+                padx=5,
+                pady=2
+            )
+
+        # =====================================================
+        # DATOS
+        # =====================================================
+
+        titulo("Datos del trabajo")
+
+        tk.Label(
+            panel,
+            text="UUID Empresa",
+            bg="white",
+            fg="#475569",
+            font=("Segoe UI", 9)
+        ).pack(anchor="w")
 
         ent_uuid = tk.Entry(
-            panel_datos,
-            font=("Consolas", 11),
+            panel,
+            font=("Consolas", 10),
             relief="solid",
-            width=15
+            bd=1
         )
-        ent_uuid.pack(side="left", padx=5)
 
-        tk.Label(panel_datos, text="Proyecto:", bg="white").pack(side="left", padx=5)
+        ent_uuid.pack(fill="x", pady=(3, 10), ipady=4)
 
-        cb_proyectos = ttk.Combobox(panel_datos, state="readonly", width=20)
-        cb_proyectos.pack(side="left", padx=5)
+        tk.Label(
+            panel,
+            text="Proyecto",
+            bg="white",
+            fg="#475569",
+            font=("Segoe UI", 9)
+        ).pack(anchor="w")
 
-        tk.Label(panel_datos, text="Estado:", bg="white").pack(side="left", padx=5)
+        cb_proyectos = ttk.Combobox(
+            panel,
+            state="readonly"
+        )
+
+        cb_proyectos.pack(fill="x", pady=(3, 10), ipady=3)
+
+        tk.Label(
+            panel,
+            text="Estado",
+            bg="white",
+            fg="#475569",
+            font=("Segoe UI", 9)
+        ).pack(anchor="w")
 
         cb_estado = ttk.Combobox(
-            panel_datos,
-            values=["Trabajando", "En Espera", "Finalizado"],
-            state="readonly",
-            width=12
+            panel,
+            values=[
+                "Trabajando",
+                "En Espera",
+                "Finalizado"
+            ],
+            state="readonly"
         )
-        cb_estado.current(1)
-        cb_estado.pack(side="left", padx=5)
 
-        canvas = tk.Canvas(v, bg="#ecf0f1", width=600, height=450)
-        canvas.pack(pady=20)
+        cb_estado.current(1)
+
+        cb_estado.pack(fill="x", pady=(3, 5), ipady=3)
+
+        separador()
+
+        # =====================================================
+        # TRANSPARENCIA
+        # =====================================================
+
+        titulo("Transparencia")
+
+        alpha = tk.IntVar(value=100)
+
+        slider_frame = tk.Frame(
+            panel,
+            bg="white"
+        )
+
+        slider_frame.pack(fill="x")
+
+        tk.Scale(
+            slider_frame,
+            from_=20,
+            to=100,
+            orient="horizontal",
+            variable=alpha,
+            bg="white",
+            fg="#334155",
+            highlightthickness=0,
+            length=285
+        ).pack()
+
+        separador()
+
+        # =====================================================
+        # HERRAMIENTAS
+        # =====================================================
+
+        titulo("Herramientas")
+
+        herramientas = tk.Frame(
+            panel,
+            bg="white"
+        )
+
+        herramientas.pack(fill="x")
+
+        for i in range(2):
+            herramientas.grid_columnconfigure(i, weight=1)
+
+        # =====================================================
+        # FUNCIONES
+        # =====================================================
+
+        def actualizar_preview():
+
+            canvas.delete("all")
+            canvas.update_idletasks()
+
+            w = canvas.winfo_width()
+            h = canvas.winfo_height()
+
+            if self.img_original:
+
+                img = self.img_original.copy()
+
+                img.thumbnail((w - 40, h - 40))
+
+                self.img_tk = ImageTk.PhotoImage(img)
+
+                canvas.create_image(
+                    w / 2,
+                    h / 2,
+                    image=self.img_tk
+                )
+
+            else:
+
+                canvas.create_text(
+                    w / 2,
+                    h / 2 - 20,
+                    text="🖼",
+                    fill="#94a3b8",
+                    font=("Segoe UI Emoji", 60)
+                )
+
+                canvas.create_text(
+                    w / 2,
+                    h / 2 + 45,
+                    text="Sin imagen cargada",
+                    fill="#64748b",
+                    font=("Segoe UI", 13, "bold")
+                )
+
+        def guardar_estado():
+
+            if self.img_original:
+                historial_imagenes.append(
+                    self.img_original.copy()
+                )
 
         def cargar_proyectos_de_empresa(event=None):
+
             uuid_busqueda = ent_uuid.get().strip()
 
             proys = self.obtener_lista_db(
                 """
                 SELECT p.nombre
                 FROM proyectos p
-                JOIN clientes c ON p.id_cliente = c.id_cliente
-                WHERE c.uuid_empresa=?
+                         JOIN clientes c
+                              ON p.id_cliente = c.id_cliente
+                WHERE c.uuid_empresa = ?
                 """,
                 (uuid_busqueda,)
             )
 
             lista = [p[0] for p in proys]
+
             cb_proyectos["values"] = lista
 
             if lista:
@@ -1420,84 +1712,141 @@ class SistemaGestion:
             else:
                 cb_proyectos.set("Sin proyectos")
 
-        def actualizar_preview():
-            canvas.delete("all")
-
-            if self.img_original:
-                img_copy = self.img_original.copy()
-                img_copy.thumbnail((600, 450))
-                self.img_tk = ImageTk.PhotoImage(img_copy)
-                canvas.create_image(300, 225, image=self.img_tk)
-            else:
-                canvas.create_text(
-                    300,
-                    225,
-                    text="Sin imagen cargada",
-                    fill="#7f8c8d"
-                )
-
-        ent_uuid.bind("<FocusOut>", cargar_proyectos_de_empresa)
-
-        if id_editar:
-            ent_uuid.insert(0, id_editar)
-            cargar_proyectos_de_empresa()
-
-        if id_pub_editar:
-            datos = self.obtener_lista_db(
-                """
-                SELECT uuid_empresa, nombre_archivo, estado, proyecto
-                FROM publicidad
-                WHERE id_pub=?
-                """,
-                (id_pub_editar,)
-            )
-
-            if datos:
-                uuid_emp, archivo, estado, proyecto = datos[0]
-                ent_uuid.insert(0, uuid_emp)
-                cargar_proyectos_de_empresa()
-                cb_estado.set(estado)
-
-                if proyecto:
-                    cb_proyectos.set(proyecto)
-
-                self.path_actual = archivo
-
-                if archivo and os.path.exists(archivo):
-                    self.img_original = Image.open(archivo)
-
-        actualizar_preview()
-
         def cargar_foto():
+
             path = filedialog.askopenfilename(
-                filetypes=[("Imágenes", "*.jpg *.png *.jpeg")]
+                filetypes=[
+                    ("Imágenes", "*.png *.jpg *.jpeg")
+                ]
             )
 
             if path:
                 self.img_original = Image.open(path)
                 self.path_actual = path
+
+                historial_imagenes.clear()
+
                 actualizar_preview()
 
-        def efectos(tipo):
+        def eliminar_imagen():
+
             if not self.img_original:
+                messagebox.showwarning(
+                    "Atención",
+                    "No hay imagen cargada."
+                )
+
                 return
 
-            if tipo == "crop":
-                w, h = self.img_original.size
-                self.img_original = self.img_original.crop(
-                    (w * 0.1, h * 0.1, w * 0.9, h * 0.9)
-                )
-            elif tipo == "gray":
-                self.img_original = ImageOps.grayscale(self.img_original)
+            confirmar = messagebox.askyesno(
+                "Eliminar",
+                "¿Desea eliminar la imagen?"
+            )
+
+            if not confirmar:
+                return
+
+            self.img_original = None
+            self.img_tk = None
+            self.path_actual = ""
+
+            historial_imagenes.clear()
 
             actualizar_preview()
 
+        def recortar_centro():
+
+            if not self.img_original:
+                return
+
+            guardar_estado()
+
+            w, h = self.img_original.size
+
+            self.img_original = self.img_original.crop(
+                (
+                    w * 0.1,
+                    h * 0.1,
+                    w * 0.9,
+                    h * 0.9
+                )
+            )
+
+            actualizar_preview()
+
+        def convertir_gris():
+
+            if not self.img_original:
+                return
+
+            guardar_estado()
+
+            self.img_original = ImageOps.grayscale(
+                self.img_original
+            )
+
+            actualizar_preview()
+
+        def hacer_transparente():
+
+            if not self.img_original:
+                return
+
+            guardar_estado()
+
+            img = self.img_original.convert("RGBA")
+
+            datos = []
+
+            for r, g, b, a in img.getdata():
+
+                if r > 235 and g > 235 and b > 235:
+
+                    datos.append(
+                        (255, 255, 255, 0)
+                    )
+
+                else:
+
+                    datos.append(
+                        (
+                            r,
+                            g,
+                            b,
+                            int(a * (alpha.get() / 100))
+                        )
+                    )
+
+            img.putdata(datos)
+
+            self.img_original = img
+
+            actualizar_preview()
+
+        def deshacer_cambio():
+
+            if historial_imagenes:
+                self.img_original = historial_imagenes.pop()
+
+                actualizar_preview()
+
         def editar_existente():
+
             seleccionado = self.seleccionar_registro(
                 "Editar publicidad",
-                ("ID", "UUID", "Proyecto", "Estado", "Fecha"),
+                (
+                    "ID",
+                    "UUID",
+                    "Proyecto",
+                    "Estado",
+                    "Fecha"
+                ),
                 """
-                SELECT id_pub, uuid_empresa, COALESCE(proyecto, ''), estado, fecha
+                SELECT id_pub,
+                       uuid_empresa,
+                       COALESCE(proyecto, ''),
+                       estado,
+                       fecha
                 FROM publicidad
                 ORDER BY id_pub DESC
                 """
@@ -1505,25 +1854,95 @@ class SistemaGestion:
 
             if seleccionado:
                 v.destroy()
-                self.ventana_publicidad_editor(id_pub_editar=int(seleccionado[0]))
+
+                self.ventana_publicidad_editor(
+                    id_pub_editar=int(seleccionado[0])
+                )
+
+        def guardar_imagen_editada():
+
+            if not self.img_original:
+                messagebox.showwarning(
+                    "Atención",
+                    "No hay imagen."
+                )
+
+                return
+
+            ruta = filedialog.asksaveasfilename(
+                defaultextension=".png",
+                filetypes=[
+                    ("PNG", "*.png"),
+                    ("JPEG", "*.jpg")
+                ]
+            )
+
+            if not ruta:
+                return
+
+            img = self.img_original
+
+            if ruta.lower().endswith(
+                    (".jpg", ".jpeg")
+            ):
+                img = img.convert("RGB")
+
+            img.save(ruta)
+
+            self.path_actual = ruta
+
+            messagebox.showinfo(
+                "Guardado",
+                "Imagen guardada correctamente."
+            )
+
+        def imprimir_imagen():
+
+            if not self.img_original:
+                return
+
+            ruta_temp = os.path.join(
+                os.path.dirname(self.ruta_db),
+                "publicidad_temp.png"
+            )
+
+            self.img_original.save(ruta_temp)
+
+            try:
+
+                os.startfile(ruta_temp, "print")
+
+            except Exception as e:
+
+                messagebox.showerror(
+                    "Error",
+                    str(e)
+                )
 
         def guardar_db():
+
             id_emp = ent_uuid.get().strip()
             proy_sel = cb_proyectos.get()
 
-            if not id_emp or not self.img_original or proy_sel == "Sin proyectos":
+            if not id_emp or not self.img_original:
                 messagebox.showwarning(
                     "Atención",
-                    "ID, Proyecto y foto requeridos."
+                    "Complete los datos requeridos."
                 )
+
                 return
 
             if id_pub_editar:
+
                 self.ejecutar_db(
                     """
                     UPDATE publicidad
-                    SET uuid_empresa=?, nombre_archivo=?, estado=?, fecha=?, proyecto=?
-                    WHERE id_pub=?
+                    SET uuid_empresa=?,
+                        nombre_archivo=?,
+                        estado=?,
+                        fecha=?,
+                        proyecto=?
+                    WHERE id_pub = ?
                     """,
                     (
                         id_emp,
@@ -1535,15 +1954,16 @@ class SistemaGestion:
                     )
                 )
 
-                messagebox.showinfo(
-                    "Éxito",
-                    f"Publicidad actualizada para el proyecto: {proy_sel}"
-                )
             else:
+
                 self.ejecutar_db(
                     """
                     INSERT INTO publicidad
-                    (uuid_empresa, nombre_archivo, estado, fecha, proyecto)
+                    (uuid_empresa,
+                     nombre_archivo,
+                     estado,
+                     fecha,
+                     proyecto)
                     VALUES (?, ?, ?, ?, ?)
                     """,
                     (
@@ -1555,61 +1975,164 @@ class SistemaGestion:
                     )
                 )
 
-                messagebox.showinfo(
-                    "Éxito",
-                    f"Publicidad guardada para el proyecto: {proy_sel}"
-                )
+            messagebox.showinfo(
+                "Éxito",
+                "Publicidad guardada correctamente."
+            )
 
             v.destroy()
 
-        btns_f = tk.Frame(v, bg="#2c3e50")
-        btns_f.pack(pady=10)
+        def guardar_completo():
 
-        tk.Button(
-            btns_f,
-            text="📂 SUBIR",
-            command=cargar_foto,
-            bg="#1abc9c",
-            fg="white",
-            width=12
-        ).pack(side="left", padx=5)
+            guardar_imagen_editada()
+            guardar_db()
 
-        tk.Button(
-            btns_f,
-            text="✂️ RECORTAR",
-            command=lambda: efectos("crop"),
-            bg="#f39c12",
-            fg="white",
-            width=12
-        ).pack(side="left", padx=5)
+        # =====================================================
+        # BOTONES HERRAMIENTAS
+        # =====================================================
 
-        tk.Button(
-            btns_f,
-            text="🌓 GRIS",
-            command=lambda: efectos("gray"),
-            bg="#95a5a6",
-            fg="white",
-            width=12
-        ).pack(side="left", padx=5)
+        botones = [
 
-        tk.Button(
-            btns_f,
-            text="EDITAR",
-            command=editar_existente,
-            bg="#8e44ad",
-            fg="white",
-            width=12
-        ).pack(side="left", padx=5)
+            ("📂 Subir", "#10b981", cargar_foto),
+            ("🗑 Eliminar", "#ef4444", eliminar_imagen),
 
-        tk.Button(
-            v,
-            text="💾 GUARDAR CAMBIOS" if id_pub_editar else "💾 GUARDAR",
-            command=guardar_db,
-            bg="#3498db",
-            fg="white",
-            height=2,
-            width=22
-        ).pack(pady=20)
+            ("✂️ Recortar", "#f59e0b", recortar_centro),
+            ("🌓 Escala gris", "#6b7280", convertir_gris),
+
+            ("🪄 Transparencia", "#14b8a6", hacer_transparente),
+            ("↶ Deshacer", "#64748b", deshacer_cambio),
+
+            ("✏️ Editar", "#8b5cf6", editar_existente)
+
+        ]
+
+        fila = 0
+        col = 0
+
+        for texto, color, comando in botones:
+
+            btn = boton_estilo(
+                herramientas,
+                texto,
+                color,
+                comando
+            )
+
+            btn.grid(
+                row=fila,
+                column=col,
+                sticky="ew",
+                padx=4,
+                pady=4
+            )
+
+            col += 1
+
+            if col > 1:
+                col = 0
+                fila += 1
+
+        separador()
+
+        # =====================================================
+        # ACCIONES
+        # =====================================================
+
+        titulo("Archivo")
+
+        acciones = tk.Frame(
+            panel,
+            bg="white"
+        )
+
+        acciones.pack(fill="x")
+
+        boton_estilo(
+            acciones,
+            "💾 Guardar imagen",
+            "#22c55e",
+            guardar_imagen_editada
+        ).pack(fill="x", pady=4)
+
+        boton_estilo(
+            acciones,
+            "🖨 Imprimir publicidad",
+            "#334155",
+            imprimir_imagen
+        ).pack(fill="x", pady=4)
+
+        boton_estilo(
+            acciones,
+            "💾 Guardar publicidad",
+            "#3b82f6",
+            guardar_db
+        ).pack(fill="x", pady=4)
+
+        boton_estilo(
+            acciones,
+            "✅ Guardar",
+            "#0f766e",
+            guardar_completo
+        ).pack(fill="x", pady=4)
+
+        # =====================================================
+        # EVENTOS
+        # =====================================================
+
+        ent_uuid.bind(
+            "<FocusOut>",
+            cargar_proyectos_de_empresa
+        )
+
+        canvas.bind(
+            "<Configure>",
+            lambda e: actualizar_preview()
+        )
+
+        # =====================================================
+        # MODO EDITAR
+        # =====================================================
+
+        if id_editar:
+            ent_uuid.insert(0, id_editar)
+
+            cargar_proyectos_de_empresa()
+
+        if id_pub_editar:
+
+            datos = self.obtener_lista_db(
+                """
+                SELECT uuid_empresa,
+                       nombre_archivo,
+                       estado,
+                       proyecto
+                FROM publicidad
+                WHERE id_pub = ?
+                """,
+                (id_pub_editar,)
+            )
+
+            if datos:
+
+                uuid_emp, archivo, estado, proyecto = datos[0]
+
+                ent_uuid.insert(0, uuid_emp)
+
+                cargar_proyectos_de_empresa()
+
+                cb_estado.set(estado)
+
+                if proyecto:
+                    cb_proyectos.set(proyecto)
+
+                self.path_actual = archivo
+
+                if archivo and os.path.exists(archivo):
+                    self.img_original = Image.open(
+                        archivo
+                    )
+
+        actualizar_preview()
 
     def ventana_continuar_proyecto(self):
         v = tk.Toplevel(self.root)
@@ -1622,7 +2145,7 @@ class SistemaGestion:
 
         tk.Label(
             header_f,
-            text="🚀 GESTIÓN DE TRABAJOS PENDIENTES",
+            text="GESTION DE TRABAJOS PENDIENTES",
             fg="white",
             bg="#2c3e50",
             font=("Segoe UI", 12, "bold")
@@ -1633,7 +2156,7 @@ class SistemaGestion:
 
         tk.Label(
             search_f,
-            text="🔍 Ingrese ID de Empresa o Proyecto:",
+            text="Ingrese ID de Empresa o Proyecto:",
             bg="#f8f9fa",
             font=("Segoe UI", 10)
         ).pack(side="left", padx=(40, 10))
@@ -1708,7 +2231,7 @@ class SistemaGestion:
                 else:
                     messagebox.showinfo(
                         "Proyectos",
-                        f"Redirigiendo al módulo de Proyectos para: {nombre}"
+                        f"Redirigiendo al modulo de Proyectos para: {nombre}"
                     )
 
         ent_id.bind("<KeyRelease>", buscar)
@@ -1716,7 +2239,7 @@ class SistemaGestion:
 
         tk.Label(
             v,
-            text="💡 Tip: Doble clic sobre un registro para continuar editando o ver resultado.",
+            text="Tip: Doble clic sobre un registro para continuar editando o ver resultado.",
             fg="#7f8c8d",
             bg="#f8f9fa",
             font=("Segoe UI", 9, "italic")
@@ -1775,11 +2298,7 @@ class SistemaGestion:
         v.geometry("760x580")
         v.configure(bg="#f4f6f8")
 
-        seleccionado = {
-            "id": None,
-            "texto": "",
-            "frame": None
-        }
+        seleccionado = {"id": None, "texto": "", "frame": None}
 
         header = tk.Frame(v, bg="#f39c12", height=64)
         header.pack(fill="x")
@@ -1795,7 +2314,7 @@ class SistemaGestion:
 
         tk.Label(
             header,
-            text=f"Sesión: {self.usuario_actual}",
+            text=f"Sesion: {self.usuario_actual}",
             bg="#f39c12",
             fg="white",
             font=("Segoe UI", 10)
@@ -1804,26 +2323,11 @@ class SistemaGestion:
         cuerpo = tk.Frame(v, bg="#f4f6f8")
         cuerpo.pack(fill="both", expand=True, padx=18, pady=(18, 10))
 
-        canvas = tk.Canvas(
-            cuerpo,
-            bg="#f4f6f8",
-            highlightthickness=0
-        )
-
-        scroll = ttk.Scrollbar(
-            cuerpo,
-            orient="vertical",
-            command=canvas.yview
-        )
-
+        canvas = tk.Canvas(cuerpo, bg="#f4f6f8", highlightthickness=0)
+        scroll = ttk.Scrollbar(cuerpo, orient="vertical", command=canvas.yview)
         chat_frame = tk.Frame(canvas, bg="#f4f6f8")
 
-        canvas_window = canvas.create_window(
-            (0, 0),
-            window=chat_frame,
-            anchor="nw"
-        )
-
+        canvas_window = canvas.create_window((0, 0), window=chat_frame, anchor="nw")
         canvas.configure(yscrollcommand=scroll.set)
         canvas.pack(side="left", fill="both", expand=True)
         scroll.pack(side="right", fill="y")
@@ -1840,12 +2344,7 @@ class SistemaGestion:
         panel_envio = tk.Frame(v, bg="#ffffff", padx=16, pady=14)
         panel_envio.pack(fill="x", padx=18, pady=(0, 18))
 
-        msj = tk.Entry(
-            panel_envio,
-            font=("Segoe UI", 11),
-            relief="solid",
-            bd=1
-        )
+        msj = tk.Entry(panel_envio, font=("Segoe UI", 11), relief="solid", bd=1)
         msj.pack(side="left", fill="x", expand=True, ipady=9, padx=(0, 12))
 
         placeholder = "Escribe un mensaje"
@@ -1877,10 +2376,7 @@ class SistemaGestion:
 
         def limpiar_seleccion():
             if seleccionado["frame"] and seleccionado["frame"].winfo_exists():
-                seleccionado["frame"].configure(
-                    highlightthickness=0,
-                    highlightbackground="#ffffff"
-                )
+                seleccionado["frame"].configure(highlightthickness=0)
 
             seleccionado["id"] = None
             seleccionado["texto"] = ""
@@ -1888,10 +2384,7 @@ class SistemaGestion:
 
         def seleccionar_mensaje(id_mensaje, texto, frame_burbuja):
             if seleccionado["frame"] and seleccionado["frame"].winfo_exists():
-                seleccionado["frame"].configure(
-                    highlightthickness=0,
-                    highlightbackground="#ffffff"
-                )
+                seleccionado["frame"].configure(highlightthickness=0)
 
             seleccionado["id"] = id_mensaje
             seleccionado["texto"] = texto
@@ -1934,8 +2427,7 @@ class SistemaGestion:
                     bg=color_burbuja,
                     padx=12,
                     pady=8,
-                    highlightthickness=0,
-                    highlightbackground="#ffffff"
+                    highlightthickness=0
                 )
 
                 contenedor_burbuja.pack(
@@ -1946,7 +2438,7 @@ class SistemaGestion:
 
                 tk.Label(
                     contenedor_burbuja,
-                    text=f"{remitente} · {fecha_hora}",
+                    text=f"{remitente} - {fecha_hora}",
                     bg=color_burbuja,
                     fg=color_meta,
                     font=("Segoe UI", 8, "bold"),
@@ -1965,12 +2457,7 @@ class SistemaGestion:
                     anchor="w"
                 ).pack(anchor="w", pady=(3, 0))
 
-                def click_mensaje(
-                    event,
-                    id_sel=id_mensaje,
-                    texto_sel=contenido,
-                    frame_sel=contenedor_burbuja
-                ):
+                def click_mensaje(event, id_sel=id_mensaje, texto_sel=contenido, frame_sel=contenedor_burbuja):
                     seleccionar_mensaje(id_sel, texto_sel, frame_sel)
 
                 contenedor_burbuja.bind("<Button-1>", click_mensaje)
@@ -1992,11 +2479,7 @@ class SistemaGestion:
                 (remitente, contenido, fecha_hora)
                 VALUES (?, ?, ?)
                 """,
-                (
-                    self.usuario_actual,
-                    texto,
-                    datetime.now().strftime("%H:%M")
-                )
+                (self.usuario_actual, texto, datetime.now().strftime("%H:%M"))
             )
 
             msj.delete(0, tk.END)
@@ -2006,19 +2489,13 @@ class SistemaGestion:
 
         def editar_mensaje():
             if not seleccionado["id"]:
-                messagebox.showwarning(
-                    "Atención",
-                    "Seleccione un mensaje para editar."
-                )
+                messagebox.showwarning("Atencion", "Seleccione un mensaje para editar.")
                 return
 
             texto = obtener_texto_mensaje()
 
             if not texto:
-                messagebox.showwarning(
-                    "Atención",
-                    "El mensaje no puede quedar vacío."
-                )
+                messagebox.showwarning("Atencion", "El mensaje no puede quedar vacio.")
                 return
 
             self.ejecutar_db(
@@ -2027,11 +2504,7 @@ class SistemaGestion:
                 SET contenido=?, fecha_hora=?
                 WHERE id_mensaje=?
                 """,
-                (
-                    texto,
-                    datetime.now().strftime("%H:%M"),
-                    seleccionado["id"]
-                )
+                (texto, datetime.now().strftime("%H:%M"), seleccionado["id"])
             )
 
             msj.delete(0, tk.END)
@@ -2041,15 +2514,12 @@ class SistemaGestion:
 
         def eliminar_mensaje():
             if not seleccionado["id"]:
-                messagebox.showwarning(
-                    "Atención",
-                    "Seleccione un mensaje para eliminar."
-                )
+                messagebox.showwarning("Atencion", "Seleccione un mensaje para eliminar.")
                 return
 
             confirmar = messagebox.askyesno(
                 "Eliminar mensaje",
-                "¿Desea eliminar el mensaje seleccionado?"
+                "Desea eliminar el mensaje seleccionado?"
             )
 
             if not confirmar:
@@ -2071,8 +2541,6 @@ class SistemaGestion:
             command=enviar,
             bg="#2ecc71",
             fg="white",
-            activebackground="#27ae60",
-            activeforeground="white",
             font=("Segoe UI", 9, "bold"),
             bd=0,
             width=12,
@@ -2082,30 +2550,26 @@ class SistemaGestion:
 
         tk.Button(
             botones,
-            text="Editar mensaje",
+            text="Editar",
             command=editar_mensaje,
             bg="#3498db",
             fg="white",
-            activebackground="#2980b9",
-            activeforeground="white",
             font=("Segoe UI", 9, "bold"),
             bd=0,
-            width=15,
+            width=12,
             height=2,
             cursor="hand2"
         ).pack(side="left", padx=4)
 
         tk.Button(
             botones,
-            text="Eliminar mensaje",
+            text="Eliminar",
             command=eliminar_mensaje,
             bg="#e74c3c",
             fg="white",
-            activebackground="#c0392b",
-            activeforeground="white",
             font=("Segoe UI", 9, "bold"),
             bd=0,
-            width=16,
+            width=12,
             height=2,
             cursor="hand2"
         ).pack(side="left", padx=4)
@@ -2134,7 +2598,7 @@ class SistemaGestion:
             )
             datos_editar = datos[0] if datos else None
 
-        titulo = "EDITAR PAGO" if id_pago_editar else "💰 REGISTRAR NUEVO PAGO"
+        titulo = "EDITAR PAGO" if id_pago_editar else "REGISTRAR NUEVO PAGO"
 
         tk.Label(
             vp,
@@ -2191,7 +2655,7 @@ class SistemaGestion:
 
         cb_tipo = ttk.Combobox(
             f,
-            values=["Efectivo", "Tarjeta"],
+            values=["Efectivo", "Tarjeta", "Transferencia"],
             state="readonly"
         )
         cb_tipo.current(0)
@@ -2220,7 +2684,7 @@ class SistemaGestion:
         def editar_existente():
             seleccionado = self.seleccionar_registro(
                 "Editar pago",
-                ("ID", "UUID", "Proyecto", "Monto", "Método", "Fecha"),
+                ("ID", "UUID", "Proyecto", "Monto", "Metodo", "Fecha"),
                 """
                 SELECT id_pago, uuid_empresa, nombre_proyecto, monto, metodo_pago, fecha_pago
                 FROM pagos
@@ -2240,10 +2704,7 @@ class SistemaGestion:
             try:
                 monto = float(ent_monto.get())
             except ValueError:
-                messagebox.showwarning(
-                    "Error",
-                    "El monto debe ser numérico."
-                )
+                messagebox.showwarning("Error", "El monto debe ser numerico.")
                 return
 
             if id_pago_editar:
@@ -2262,7 +2723,7 @@ class SistemaGestion:
                     )
                 )
 
-                messagebox.showinfo("Éxito", "Pago actualizado")
+                messagebox.showinfo("Exito", "Pago actualizado")
             else:
                 self.ejecutar_db(
                     """
@@ -2279,7 +2740,7 @@ class SistemaGestion:
                     )
                 )
 
-                messagebox.showinfo("Éxito", "Pago guardado")
+                messagebox.showinfo("Exito", "Pago guardado")
 
             vp.destroy()
 
@@ -2305,12 +2766,12 @@ class SistemaGestion:
 
     def ventana_facturas(self):
         vf = tk.Toplevel(self.root)
-        vf.title("Historial de Facturación")
+        vf.title("Historial de Facturacion")
         vf.geometry("900x560")
 
         tk.Label(
             vf,
-            text="📄 PAGOS RECIBIDOS / FACTURAS",
+            text="PAGOS RECIBIDOS / FACTURAS",
             font=("Segoe UI", 14, "bold"),
             pady=20
         ).pack()
@@ -2318,8 +2779,7 @@ class SistemaGestion:
         barra = tk.Frame(vf)
         barra.pack(fill="x", padx=20)
 
-        cols = ("ID", "Empresa (UUID)", "Proyecto", "Monto", "Método", "Fecha")
-
+        cols = ("ID", "Empresa (UUID)", "Proyecto", "Monto", "Metodo", "Fecha")
         tree = ttk.Treeview(vf, columns=cols, show="headings")
 
         for c in cols:
@@ -2347,10 +2807,7 @@ class SistemaGestion:
             item = tree.selection()
 
             if not item:
-                messagebox.showwarning(
-                    "Atención",
-                    "Seleccione una factura."
-                )
+                messagebox.showwarning("Atencion", "Seleccione una factura.")
                 return None
 
             return tree.item(item, "values")
@@ -2378,7 +2835,7 @@ class SistemaGestion:
                 f"UUID: {uuid_emp}\n"
                 f"Proyecto: {proyecto}\n"
                 f"Monto: Q {float(monto):.2f}\n"
-                f"Método de pago: {metodo}\n"
+                f"Metodo de pago: {metodo}\n"
                 f"Fecha: {fecha}\n"
                 "================================\n"
                 "Gracias por confiar en Espacio Creativo.\n"
@@ -2403,10 +2860,7 @@ class SistemaGestion:
             with open(ruta, "w", encoding="utf-8") as archivo:
                 archivo.write(texto_factura(pago))
 
-            messagebox.showinfo(
-                "Éxito",
-                f"Factura guardada en:\n{ruta}"
-            )
+            messagebox.showinfo("Exito", f"Factura guardada en:\n{ruta}")
 
         def imprimir_factura():
             pago = obtener_pago_seleccionado()
@@ -2424,15 +2878,11 @@ class SistemaGestion:
 
             try:
                 os.startfile(ruta_temp, "print")
-                messagebox.showinfo(
-                    "Impresión",
-                    "Factura enviada a imprimir."
-                )
+                messagebox.showinfo("Impresion", "Factura enviada a imprimir.")
             except Exception as e:
                 messagebox.showerror(
                     "Error",
-                    f"No se pudo imprimir automáticamente:\n{e}\n\n"
-                    f"Archivo generado:\n{ruta_temp}"
+                    f"No se pudo imprimir automaticamente:\n{e}\n\nArchivo generado:\n{ruta_temp}"
                 )
 
         tk.Button(
@@ -2463,6 +2913,718 @@ class SistemaGestion:
         ).pack(side="left", padx=5)
 
         cargar_datos()
+
+    def ventana_reportes_financieros(self):
+        v = tk.Toplevel(self.root)
+        v.title("Reportes financieros")
+        v.geometry("1180x820")
+        v.configure(bg="#f4f7f6")
+
+        tk.Label(
+            v,
+            text="REPORTES FINANCIEROS",
+            bg="#f4f7f6",
+            fg="#16a085",
+            font=("Segoe UI", 17, "bold")
+        ).pack(pady=(16, 8))
+
+        resumen = tk.Frame(v, bg="#f4f7f6")
+        resumen.pack(fill="x", padx=20, pady=(4, 10))
+
+        lbl_ingresos = self.crear_tarjeta_resumen(resumen, "Ingresos", "#2ecc71")
+        lbl_egresos = self.crear_tarjeta_resumen(resumen, "Egresos", "#e74c3c")
+        lbl_margen = self.crear_tarjeta_resumen(resumen, "Margen", "#3498db")
+        lbl_estado = self.crear_tarjeta_resumen(resumen, "Resultado", "#8e44ad")
+
+        cuerpo = tk.Frame(v, bg="#f4f7f6")
+        cuerpo.pack(fill="both", expand=True, padx=20, pady=(0, 10))
+
+        panel_egresos = tk.Frame(
+            cuerpo,
+            bg="white",
+            width=190,
+            padx=18,
+            pady=16,
+            highlightthickness=1,
+            highlightbackground="#dfe6e9"
+        )
+        panel_egresos.pack(side="left", fill="y", padx=(0, 14))
+        panel_egresos.pack_propagate(False)
+
+        tk.Label(
+            panel_egresos,
+            text="Registrar egreso",
+            bg="white",
+            fg="#2c3e50",
+            font=("Segoe UI", 12, "bold")
+        ).pack(anchor="w", pady=(0, 12))
+
+        ent_concepto = self.crear_campo(panel_egresos, "Concepto")
+
+        tk.Label(panel_egresos, text="Categoria", bg="white").pack(anchor="w")
+        cb_categoria = ttk.Combobox(
+            panel_egresos,
+            values=["Compra", "Materiales", "Impresion", "Transporte", "Servicios", "Otro"],
+            state="readonly"
+        )
+        cb_categoria.current(0)
+        cb_categoria.pack(fill="x", pady=(4, 12), ipady=3)
+
+        ent_monto = self.crear_campo(panel_egresos, "Monto Q")
+        ent_nota = self.crear_campo(panel_egresos, "Nota")
+
+        panel_derecho = tk.Frame(cuerpo, bg="#f4f7f6")
+        panel_derecho.pack(side="right", fill="both", expand=True)
+
+        scroll_panel = ttk.Scrollbar(panel_derecho, orient="vertical")
+        scroll_panel.pack(side="right", fill="y")
+
+        canvas_panel = tk.Canvas(
+            panel_derecho,
+            bg="#f4f7f6",
+            highlightthickness=0,
+            yscrollcommand=scroll_panel.set
+        )
+        canvas_panel.pack(side="left", fill="both", expand=True)
+
+        scroll_panel.config(command=canvas_panel.yview)
+
+        contenido_panel = tk.Frame(canvas_panel, bg="#f4f7f6")
+        ventana_panel = canvas_panel.create_window(
+            (0, 0),
+            window=contenido_panel,
+            anchor="nw"
+        )
+
+        def ajustar_scroll_panel(event=None):
+            canvas_panel.configure(scrollregion=canvas_panel.bbox("all"))
+
+        def ajustar_ancho_panel(event):
+            canvas_panel.itemconfigure(ventana_panel, width=event.width)
+
+        contenido_panel.bind("<Configure>", ajustar_scroll_panel)
+        canvas_panel.bind("<Configure>", ajustar_ancho_panel)
+
+        grafica = tk.Canvas(
+            contenido_panel,
+            bg="white",
+            height=390,
+            highlightthickness=1,
+            highlightbackground="#dfe6e9"
+        )
+        grafica.pack(fill="x", expand=False)
+
+        tabla_panel = tk.Frame(
+            contenido_panel,
+            bg="white",
+            padx=10,
+            pady=10,
+            highlightthickness=1,
+            highlightbackground="#dfe6e9"
+        )
+        tabla_panel.pack(fill="x", pady=(12, 0))
+
+        def mover_scroll_mouse(event):
+            canvas_panel.yview_scroll(int(-1 * (event.delta / 120)), "units")
+
+        canvas_panel.bind_all("<MouseWheel>", mover_scroll_mouse)
+
+        tk.Label(
+            tabla_panel,
+            text="Detalle de movimientos",
+            bg="white",
+            fg="#2c3e50",
+            font=("Segoe UI", 11, "bold")
+        ).pack(anchor="w", pady=(0, 8))
+
+        tabla_contenedor = tk.Frame(tabla_panel, bg="white", height=170)
+        tabla_contenedor.pack(fill="x")
+        tabla_contenedor.pack_propagate(False)
+
+        cols = ("Tipo", "Detalle", "Monto", "Fecha")
+
+        tree_scroll_y = ttk.Scrollbar(tabla_contenedor, orient="vertical")
+        tree_scroll_x = ttk.Scrollbar(tabla_contenedor, orient="horizontal")
+
+        tree = ttk.Treeview(
+            tabla_contenedor,
+            columns=cols,
+            show="headings",
+            height=6,
+            yscrollcommand=tree_scroll_y.set,
+            xscrollcommand=tree_scroll_x.set
+        )
+
+        tree_scroll_y.config(command=tree.yview)
+        tree_scroll_x.config(command=tree.xview)
+
+        tree.heading("Tipo", text="Tipo")
+        tree.heading("Detalle", text="Detalle")
+        tree.heading("Monto", text="Monto")
+        tree.heading("Fecha", text="Fecha")
+
+        tree.column("Tipo", width=120, anchor="center", stretch=False)
+        tree.column("Detalle", width=520, anchor="w", stretch=False)
+        tree.column("Monto", width=160, anchor="center", stretch=False)
+        tree.column("Fecha", width=210, anchor="center", stretch=False)
+
+        tree.grid(row=0, column=0, sticky="nsew")
+        tree_scroll_y.grid(row=0, column=1, sticky="ns")
+        tree_scroll_x.grid(row=1, column=0, sticky="ew")
+
+        tabla_contenedor.grid_rowconfigure(0, weight=1)
+        tabla_contenedor.grid_columnconfigure(0, weight=1)
+
+        totales = {"ingresos": 0.0, "egresos": 0.0, "margen": 0.0}
+
+        def leer_datos():
+            ingresos = self.obtener_lista_db(
+                """
+                SELECT 'Ingreso', nombre_proyecto, monto, fecha_pago
+                FROM pagos
+                ORDER BY fecha_pago DESC
+                """
+            )
+
+            egresos = self.obtener_lista_db(
+                """
+                SELECT 'Egreso', concepto || ' - ' || COALESCE(categoria, ''), monto, fecha
+                FROM egresos
+                ORDER BY id_egreso DESC
+                """
+            )
+
+            return ingresos, egresos
+
+        def actualizar():
+            for item in tree.get_children():
+                tree.delete(item)
+
+            ingresos, egresos = leer_datos()
+            total_ingresos = sum(float(r[2] or 0) for r in ingresos)
+            total_egresos = sum(float(r[2] or 0) for r in egresos)
+            margen = total_ingresos - total_egresos
+
+            totales["ingresos"] = total_ingresos
+            totales["egresos"] = total_egresos
+            totales["margen"] = margen
+
+            lbl_ingresos.config(text=f"Q {total_ingresos:,.2f}")
+            lbl_egresos.config(text=f"Q {total_egresos:,.2f}")
+            lbl_margen.config(text=f"Q {margen:,.2f}")
+            lbl_estado.config(text="Ganancia" if margen >= 0 else "Perdida")
+
+            for fila in ingresos + egresos:
+                tree.insert(
+                    "",
+                    "end",
+                    values=(fila[0], fila[1], f"Q {float(fila[2]):,.2f}", fila[3])
+                )
+
+            dibujar_grafica()
+
+        def dibujar_grafica():
+            grafica.delete("all")
+            grafica.update_idletasks()
+
+            w = max(grafica.winfo_width(), 500)
+            h = max(grafica.winfo_height(), 320)
+
+            grafica.create_text(
+                w / 2,
+                32,
+                text="Ingresos vs egresos",
+                font=("Segoe UI", 15, "bold"),
+                fill="#2c3e50"
+            )
+
+            maximo = max(totales["ingresos"], totales["egresos"], 1)
+            base_y = h - 80
+            alto_max = h - 150
+
+            barras = [
+                ("Ingresos", totales["ingresos"], "#2ecc71", w * 0.35),
+                ("Egresos", totales["egresos"], "#e74c3c", w * 0.65)
+            ]
+
+            for nombre, valor, color, x in barras:
+                alto = (valor / maximo) * alto_max
+                grafica.create_rectangle(
+                    x - 55,
+                    base_y - alto,
+                    x + 55,
+                    base_y,
+                    fill=color,
+                    outline=""
+                )
+                grafica.create_text(
+                    x,
+                    base_y + 24,
+                    text=nombre,
+                    font=("Segoe UI", 10, "bold"),
+                    fill="#2c3e50"
+                )
+                grafica.create_text(
+                    x,
+                    base_y - alto - 18,
+                    text=f"Q {valor:,.2f}",
+                    font=("Segoe UI", 10),
+                    fill="#2c3e50"
+                )
+
+            color_margen = "#2ecc71" if totales["margen"] >= 0 else "#e74c3c"
+
+            grafica.create_text(
+                w / 2,
+                h - 25,
+                text=f"Margen: Q {totales['margen']:,.2f}",
+                font=("Segoe UI", 13, "bold"),
+                fill=color_margen
+            )
+
+        def guardar_egreso():
+            concepto = ent_concepto.get().strip()
+            categoria = cb_categoria.get()
+            nota = ent_nota.get().strip()
+
+            try:
+                monto = float(ent_monto.get())
+            except ValueError:
+                messagebox.showwarning("Error", "El monto debe ser numerico.")
+                return
+
+            if not concepto or monto <= 0:
+                messagebox.showwarning("Error", "Ingrese concepto y monto valido.")
+                return
+
+            self.ejecutar_db(
+                """
+                INSERT INTO egresos (concepto, categoria, monto, fecha, nota)
+                VALUES (?, ?, ?, ?, ?)
+                """,
+                (
+                    concepto,
+                    categoria,
+                    monto,
+                    datetime.now().strftime("%d/%m/%Y %H:%M"),
+                    nota
+                )
+            )
+
+            ent_concepto.delete(0, tk.END)
+            ent_monto.delete(0, tk.END)
+            ent_nota.delete(0, tk.END)
+            actualizar()
+
+        def texto_reporte():
+            ingresos, egresos = leer_datos()
+
+            lineas = [
+                "ESPACIO CREATIVO",
+                "REPORTE FINANCIERO",
+                "================================",
+                f"Fecha: {datetime.now().strftime('%d/%m/%Y %H:%M')}",
+                f"Ingresos: Q {totales['ingresos']:,.2f}",
+                f"Egresos: Q {totales['egresos']:,.2f}",
+                f"Margen: Q {totales['margen']:,.2f}",
+                f"Resultado: {'Ganancia' if totales['margen'] >= 0 else 'Perdida'}",
+                "================================",
+                "",
+                "INGRESOS"
+            ]
+
+            lineas.extend(
+                f"- {d[1]} | Q {float(d[2]):,.2f} | {d[3]}"
+                for d in ingresos
+            )
+
+            lineas.append("")
+            lineas.append("EGRESOS")
+
+            lineas.extend(
+                f"- {d[1]} | Q {float(d[2]):,.2f} | {d[3]}"
+                for d in egresos
+            )
+
+            return "\n".join(lineas) + "\n"
+
+        def guardar_reporte():
+            ruta = filedialog.asksaveasfilename(
+                title="Guardar reporte",
+                defaultextension=".txt",
+                initialfile="reporte_financiero.txt",
+                filetypes=[("Archivo de texto", "*.txt")]
+            )
+
+            if not ruta:
+                return
+
+            with open(ruta, "w", encoding="utf-8") as archivo:
+                archivo.write(texto_reporte())
+
+            messagebox.showinfo("Exito", f"Reporte guardado en:\n{ruta}")
+
+        def imprimir_reporte():
+            ruta_temp = os.path.join(
+                os.path.dirname(self.ruta_db),
+                "reporte_financiero.txt"
+            )
+
+            with open(ruta_temp, "w", encoding="utf-8") as archivo:
+                archivo.write(texto_reporte())
+
+            try:
+                os.startfile(ruta_temp, "print")
+                messagebox.showinfo("Impresion", "Reporte enviado a imprimir.")
+            except Exception as e:
+                messagebox.showerror(
+                    "Error",
+                    f"No se pudo imprimir:\n{e}\n\nArchivo:\n{ruta_temp}"
+                )
+
+        tk.Button(
+            panel_egresos,
+            text="Guardar egreso",
+            command=guardar_egreso,
+            bg="#e74c3c",
+            fg="white",
+            bd=0,
+            height=2,
+            cursor="hand2"
+        ).pack(fill="x", pady=(4, 10))
+
+        tk.Button(
+            panel_egresos,
+            text="Guardar reporte",
+            command=guardar_reporte,
+            bg="#2ecc71",
+            fg="white",
+            bd=0,
+            height=2,
+            cursor="hand2"
+        ).pack(fill="x", pady=5)
+
+        tk.Button(
+            panel_egresos,
+            text="Imprimir reporte",
+            command=imprimir_reporte,
+            bg="#8e44ad",
+            fg="white",
+            bd=0,
+            height=2,
+            cursor="hand2"
+        ).pack(fill="x", pady=5)
+
+        grafica.bind("<Configure>", lambda e: dibujar_grafica())
+        actualizar()
+
+
+
+    def crear_tarjeta_resumen(self, padre, titulo, color):
+        card = tk.Frame(
+            padre,
+            bg="white",
+            padx=18,
+            pady=12,
+            highlightthickness=1,
+            highlightbackground="#dfe6e9"
+        )
+        card.pack(side="left", expand=True, fill="x", padx=6)
+
+        tk.Label(
+            card,
+            text=titulo,
+            bg="white",
+            fg=color,
+            font=("Segoe UI", 10, "bold")
+        ).pack(anchor="w")
+
+        valor = tk.Label(
+            card,
+            text="Q 0.00",
+            bg="white",
+            fg="#2c3e50",
+            font=("Segoe UI", 16, "bold")
+        )
+        valor.pack(anchor="w", pady=(4, 0))
+        return valor
+
+    def crear_campo(self, padre, etiqueta):
+        tk.Label(padre, text=etiqueta, bg="white").pack(anchor="w")
+        entrada = tk.Entry(padre, relief="solid", bd=1)
+        entrada.pack(fill="x", pady=(4, 12), ipady=4)
+        return entrada
+
+    def crear_respaldo_automatico(self):
+        carpeta = os.path.join(os.path.dirname(self.ruta_db), "respaldos")
+        os.makedirs(carpeta, exist_ok=True)
+
+        hoy = datetime.now().strftime("%Y-%m-%d")
+        ruta = os.path.join(carpeta, f"respaldo_auto_{hoy}.zip")
+
+        if os.path.exists(ruta):
+            return ruta
+
+        self.crear_archivo_respaldo(ruta)
+        return ruta
+
+    def crear_archivo_respaldo(self, ruta_zip):
+        base = os.path.dirname(self.ruta_db)
+
+        manifest = [
+            "ESPACIO CREATIVO - RESPALDO",
+            f"Fecha: {datetime.now().strftime('%d/%m/%Y %H:%M')}",
+            "",
+            "Contenido:",
+            "- Base de datos gestion_proyectos.db",
+            "- Archivos .py del programa",
+            "- Logo si existe",
+            "- Imagenes vinculadas a publicidad",
+            "",
+            "Para una computadora nueva, copie tambien los archivos del programa",
+            "o use la opcion Restaurar respaldo desde el sistema."
+        ]
+
+        with zipfile.ZipFile(ruta_zip, "w", zipfile.ZIP_DEFLATED) as zipf:
+            if os.path.exists(self.ruta_db):
+                zipf.write(self.ruta_db, "gestion_proyectos.db")
+
+            for nombre in os.listdir(base):
+                ruta = os.path.join(base, nombre)
+
+                if os.path.isfile(ruta) and nombre.lower().endswith(".py"):
+                    zipf.write(ruta, f"programa/{nombre}")
+
+            if self.ruta_logo and os.path.exists(self.ruta_logo):
+                zipf.write(
+                    self.ruta_logo,
+                    f"assets/{os.path.basename(self.ruta_logo)}"
+                )
+
+            imagenes = self.obtener_lista_db(
+                """
+                SELECT DISTINCT nombre_archivo
+                FROM publicidad
+                WHERE nombre_archivo IS NOT NULL AND nombre_archivo <> ''
+                """
+            )
+
+            nombres_usados = set()
+
+            for (ruta_img,) in imagenes:
+                if not ruta_img or not os.path.exists(ruta_img):
+                    continue
+
+                nombre = os.path.basename(ruta_img)
+                nombre_zip = nombre
+                contador = 2
+
+                while nombre_zip.lower() in nombres_usados:
+                    raiz, ext = os.path.splitext(nombre)
+                    nombre_zip = f"{raiz}_{contador}{ext}"
+                    contador += 1
+
+                nombres_usados.add(nombre_zip.lower())
+                zipf.write(ruta_img, f"publicidad/{nombre_zip}")
+
+            zipf.writestr("LEEME_RESPALDO.txt", "\n".join(manifest))
+
+        return ruta_zip
+
+    def ventana_respaldos(self):
+        v = tk.Toplevel(self.root)
+        v.title("Seguridad y respaldos")
+        v.geometry("720x520")
+        v.configure(bg="#f4f7f6")
+
+        tk.Label(
+            v,
+            text="SEGURIDAD Y RESPALDOS",
+            bg="#f4f7f6",
+            fg="#34495e",
+            font=("Segoe UI", 17, "bold")
+        ).pack(pady=(24, 8))
+
+        info = tk.Frame(
+            v,
+            bg="white",
+            padx=22,
+            pady=18,
+            highlightthickness=1,
+            highlightbackground="#dfe6e9"
+        )
+        info.pack(fill="x", padx=28, pady=12)
+
+        tk.Label(
+            info,
+            text=(
+                "Un respaldo guarda la base de datos, el programa y las imagenes de publicidad en un archivo ZIP.\n"
+                "Conviene copiar ese ZIP a una USB, Google Drive, OneDrive o correo para protegerse si cambia la computadora."
+            ),
+            bg="white",
+            fg="#2c3e50",
+            justify="left",
+            wraplength=640,
+            font=("Segoe UI", 10)
+        ).pack(anchor="w")
+
+        carpeta_auto = os.path.join(os.path.dirname(self.ruta_db), "respaldos")
+
+        tk.Label(
+            info,
+            text=f"Carpeta de respaldos automaticos:\n{carpeta_auto}",
+            bg="white",
+            fg="#7f8c8d",
+            justify="left",
+            wraplength=640,
+            font=("Consolas", 9)
+        ).pack(anchor="w", pady=(14, 0))
+
+        acciones = tk.Frame(v, bg="#f4f7f6")
+        acciones.pack(fill="x", padx=28, pady=10)
+
+        def respaldo_manual():
+            ruta = filedialog.asksaveasfilename(
+                title="Guardar respaldo",
+                defaultextension=".zip",
+                initialfile=f"respaldo_espacio_creativo_{datetime.now().strftime('%Y%m%d_%H%M')}.zip",
+                filetypes=[("Respaldo ZIP", "*.zip")]
+            )
+
+            if not ruta:
+                return
+
+            try:
+                self.crear_archivo_respaldo(ruta)
+                messagebox.showinfo("Exito", f"Respaldo guardado en:\n{ruta}")
+            except Exception as e:
+                messagebox.showerror("Error", f"No se pudo crear el respaldo:\n{e}")
+
+        def abrir_carpeta_respaldos():
+            os.makedirs(carpeta_auto, exist_ok=True)
+
+            try:
+                os.startfile(carpeta_auto)
+            except Exception as e:
+                messagebox.showerror("Error", f"No se pudo abrir la carpeta:\n{e}")
+
+        def restaurar_respaldo():
+            ruta = filedialog.askopenfilename(
+                title="Seleccionar respaldo",
+                filetypes=[("Respaldo ZIP", "*.zip")]
+            )
+
+            if not ruta:
+                return
+
+            confirmar = messagebox.askyesno(
+                "Restaurar respaldo",
+                "Esto reemplazara la base de datos actual por la del respaldo seleccionado.\n\n"
+                "Antes de continuar se creara un respaldo de seguridad del estado actual.\n\n"
+                "Desea continuar?"
+            )
+
+            if not confirmar:
+                return
+
+            try:
+                self.crear_respaldo_automatico()
+                self.restaurar_archivo_respaldo(ruta)
+                messagebox.showinfo(
+                    "Restauracion completa",
+                    "Los datos fueron restaurados. Cierre y abra de nuevo el programa para cargar todo correctamente."
+                )
+            except Exception as e:
+                messagebox.showerror("Error", f"No se pudo restaurar el respaldo:\n{e}")
+
+        botones = [
+            ("Crear respaldo ahora", "#2ecc71", respaldo_manual),
+            ("Restaurar respaldo", "#e67e22", restaurar_respaldo),
+            ("Abrir carpeta de respaldos", "#3498db", abrir_carpeta_respaldos)
+        ]
+
+        for texto, color, comando in botones:
+            tk.Button(
+                acciones,
+                text=texto,
+                command=comando,
+                bg=color,
+                fg="white",
+                activebackground=color,
+                activeforeground="white",
+                font=("Segoe UI", 11, "bold"),
+                bd=0,
+                height=2,
+                cursor="hand2"
+            ).pack(fill="x", pady=7)
+
+        tk.Label(
+            v,
+            text="Consejo: haga un respaldo manual al terminar cada dia de trabajo importante.",
+            bg="#f4f7f6",
+            fg="#7f8c8d",
+            font=("Segoe UI", 9, "italic")
+        ).pack(pady=8)
+
+    def restaurar_archivo_respaldo(self, ruta_zip):
+        base = os.path.dirname(self.ruta_db)
+        carpeta_publicidad = os.path.join(base, "publicidad_restaurada")
+        os.makedirs(carpeta_publicidad, exist_ok=True)
+
+        with zipfile.ZipFile(ruta_zip, "r") as zipf:
+            nombres = zipf.namelist()
+
+            if "gestion_proyectos.db" not in nombres:
+                raise ValueError("El respaldo no contiene gestion_proyectos.db.")
+
+            respaldo_actual = os.path.join(
+                base,
+                f"gestion_proyectos_antes_restaurar_{datetime.now().strftime('%Y%m%d_%H%M%S')}.db"
+            )
+
+            if os.path.exists(self.ruta_db):
+                shutil.copy2(self.ruta_db, respaldo_actual)
+
+            zipf.extract("gestion_proyectos.db", base)
+
+            for nombre in nombres:
+                if nombre.startswith("publicidad/") and not nombre.endswith("/"):
+                    destino = os.path.join(
+                        carpeta_publicidad,
+                        os.path.basename(nombre)
+                    )
+
+                    with zipf.open(nombre) as origen, open(destino, "wb") as salida:
+                        shutil.copyfileobj(origen, salida)
+
+        self.reparar_rutas_publicidad_restaurada(carpeta_publicidad)
+
+    def reparar_rutas_publicidad_restaurada(self, carpeta_publicidad):
+        if not os.path.isdir(carpeta_publicidad):
+            return
+
+        archivos = {
+            nombre.lower(): os.path.join(carpeta_publicidad, nombre)
+            for nombre in os.listdir(carpeta_publicidad)
+        }
+
+        registros = self.obtener_lista_db(
+            """
+            SELECT id_pub, nombre_archivo
+            FROM publicidad
+            WHERE nombre_archivo IS NOT NULL AND nombre_archivo <> ''
+            """
+        )
+
+        for id_pub, ruta_anterior in registros:
+            nombre = os.path.basename(ruta_anterior or "").lower()
+            nueva_ruta = archivos.get(nombre)
+
+            if nueva_ruta:
+                self.ejecutar_db(
+                    "UPDATE publicidad SET nombre_archivo=? WHERE id_pub=?",
+                    (nueva_ruta, id_pub)
+                )
 
 
 if __name__ == "__main__":
