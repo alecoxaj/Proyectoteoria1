@@ -1413,9 +1413,6 @@ class SistemaGestion:
 
         historial_imagenes = []
 
-        # =====================================================
-        # HEADER
-        # =====================================================
 
         header = tk.Frame(
             v,
@@ -1442,16 +1439,8 @@ class SistemaGestion:
             font=("Segoe UI", 10)
         ).pack(side="left")
 
-        # =====================================================
-        # CONTENEDOR PRINCIPAL
-        # =====================================================
-
         main = tk.Frame(v, bg="#edf2f7")
         main.pack(fill="both", expand=True, padx=18, pady=18)
-
-        # =====================================================
-        # PANEL IZQUIERDO
-        # =====================================================
 
         panel = tk.Frame(
             main,
@@ -1465,10 +1454,6 @@ class SistemaGestion:
 
         panel.pack(side="left", fill="y", padx=(0, 16))
         panel.pack_propagate(False)
-
-        # =====================================================
-        # VISOR
-        # =====================================================
 
         visor_frame = tk.Frame(
             main,
@@ -1488,10 +1473,6 @@ class SistemaGestion:
         )
 
         canvas.pack(fill="both", expand=True)
-
-        # =====================================================
-        # ESTILOS
-        # =====================================================
 
         def titulo(txt):
 
@@ -1529,10 +1510,6 @@ class SistemaGestion:
                 padx=5,
                 pady=2
             )
-
-        # =====================================================
-        # DATOS
-        # =====================================================
 
         titulo("Datos del trabajo")
 
@@ -1592,10 +1569,6 @@ class SistemaGestion:
 
         separador()
 
-        # =====================================================
-        # TRANSPARENCIA
-        # =====================================================
-
         titulo("Transparencia")
 
         alpha = tk.IntVar(value=100)
@@ -1621,10 +1594,6 @@ class SistemaGestion:
 
         separador()
 
-        # =====================================================
-        # HERRAMIENTAS
-        # =====================================================
-
         titulo("Herramientas")
 
         herramientas = tk.Frame(
@@ -1636,10 +1605,6 @@ class SistemaGestion:
 
         for i in range(2):
             herramientas.grid_columnconfigure(i, weight=1)
-
-        # =====================================================
-        # FUNCIONES
-        # =====================================================
 
         def actualizar_preview():
 
@@ -1859,43 +1824,6 @@ class SistemaGestion:
                     id_pub_editar=int(seleccionado[0])
                 )
 
-        def guardar_imagen_editada():
-
-            if not self.img_original:
-                messagebox.showwarning(
-                    "Atención",
-                    "No hay imagen."
-                )
-
-                return
-
-            ruta = filedialog.asksaveasfilename(
-                defaultextension=".png",
-                filetypes=[
-                    ("PNG", "*.png"),
-                    ("JPEG", "*.jpg")
-                ]
-            )
-
-            if not ruta:
-                return
-
-            img = self.img_original
-
-            if ruta.lower().endswith(
-                    (".jpg", ".jpeg")
-            ):
-                img = img.convert("RGB")
-
-            img.save(ruta)
-
-            self.path_actual = ruta
-
-            messagebox.showinfo(
-                "Guardado",
-                "Imagen guardada correctamente."
-            )
-
         def imprimir_imagen():
 
             if not self.img_original:
@@ -1931,6 +1859,9 @@ class SistemaGestion:
                 )
 
                 return
+
+            if self.img_original and self.path_actual:
+                self.img_original.save(self.path_actual)
 
             if id_pub_editar:
 
@@ -1982,15 +1913,6 @@ class SistemaGestion:
 
             v.destroy()
 
-        def guardar_completo():
-
-            guardar_imagen_editada()
-            guardar_db()
-
-        # =====================================================
-        # BOTONES HERRAMIENTAS
-        # =====================================================
-
         botones = [
 
             ("📂 Subir", "#10b981", cargar_foto),
@@ -2002,7 +1924,8 @@ class SistemaGestion:
             ("🪄 Transparencia", "#14b8a6", hacer_transparente),
             ("↶ Deshacer", "#64748b", deshacer_cambio),
 
-            ("✏️ Editar", "#8b5cf6", editar_existente)
+            ("✏️ Editar", "#8b5cf6", editar_existente),
+            ("✅ Guardar", "#0f766e", guardar_db)
 
         ]
 
@@ -2034,11 +1957,7 @@ class SistemaGestion:
 
         separador()
 
-        # =====================================================
-        # ACCIONES
-        # =====================================================
-
-        titulo("Archivo")
+        titulo("Acciones")
 
         acciones = tk.Frame(
             panel,
@@ -2047,37 +1966,21 @@ class SistemaGestion:
 
         acciones.pack(fill="x")
 
-        boton_estilo(
-            acciones,
-            "💾 Guardar imagen",
-            "#22c55e",
-            guardar_imagen_editada
-        ).pack(fill="x", pady=4)
+        for i in range(2):
+            acciones.grid_columnconfigure(i, weight=1)
 
         boton_estilo(
             acciones,
-            "🖨 Imprimir publicidad",
+            "🖨 Imprimir",
             "#334155",
             imprimir_imagen
-        ).pack(fill="x", pady=4)
-
-        boton_estilo(
-            acciones,
-            "💾 Guardar publicidad",
-            "#3b82f6",
-            guardar_db
-        ).pack(fill="x", pady=4)
-
-        boton_estilo(
-            acciones,
-            "✅ Guardar",
-            "#0f766e",
-            guardar_completo
-        ).pack(fill="x", pady=4)
-
-        # =====================================================
-        # EVENTOS
-        # =====================================================
+        ).grid(
+            row=0,
+            column=0,
+            sticky="ew",
+            padx=4,
+            pady=4
+        )
 
         ent_uuid.bind(
             "<FocusOut>",
@@ -2088,10 +1991,6 @@ class SistemaGestion:
             "<Configure>",
             lambda e: actualizar_preview()
         )
-
-        # =====================================================
-        # MODO EDITAR
-        # =====================================================
 
         if id_editar:
             ent_uuid.insert(0, id_editar)
@@ -2582,8 +2481,9 @@ class SistemaGestion:
     def ventana_pagos(self, id_pago_editar=None):
         vp = tk.Toplevel(self.root)
         vp.title("Registro de Pagos")
-        vp.geometry("450x590")
-        vp.configure(bg="#f4f7f6")
+        vp.geometry("520x650")
+        vp.configure(bg="#eef2f5")
+        vp.resizable(False, False)
 
         datos_editar = None
 
@@ -2598,35 +2498,83 @@ class SistemaGestion:
             )
             datos_editar = datos[0] if datos else None
 
-        titulo = "EDITAR PAGO" if id_pago_editar else "REGISTRAR NUEVO PAGO"
+        fecha_real = datos_editar[4] if datos_editar else datetime.now().strftime("%d/%m/%Y %H:%M")
+
+        header = tk.Frame(vp, bg="#e67e22", height=82)
+        header.pack(fill="x")
+        header.pack_propagate(False)
 
         tk.Label(
-            vp,
-            text=titulo,
-            font=("Segoe UI", 14, "bold"),
-            bg="#f4f7f6",
-            fg="#e67e22"
-        ).pack(pady=20)
+            header,
+            text="💰 Registro de Pagos",
+            bg="#e67e22",
+            fg="white",
+            font=("Segoe UI", 20, "bold")
+        ).pack(side="left", padx=28)
 
-        f = tk.Frame(
+        subtitulo = "Editar comprobante de pago" if id_pago_editar else "Nuevo comprobante de pago"
+
+        tk.Label(
+            header,
+            text=subtitulo,
+            bg="#e67e22",
+            fg="#fff3e0",
+            font=("Segoe UI", 10)
+        ).pack(side="left", padx=8)
+
+        contenedor = tk.Frame(
             vp,
             bg="white",
-            padx=30,
-            pady=20,
+            padx=32,
+            pady=26,
             highlightthickness=1,
-            highlightbackground="#dee2e6"
+            highlightbackground="#d8dee4"
         )
-        f.pack(fill="both", expand=True, padx=20, pady=10)
+        contenedor.pack(fill="both", expand=True, padx=28, pady=26)
 
-        tk.Label(f, text="ID Empresa (UUID):", bg="white").pack(anchor="w")
+        def etiqueta(texto):
+            tk.Label(
+                contenedor,
+                text=texto,
+                bg="white",
+                fg="#2c3e50",
+                font=("Segoe UI", 10, "bold")
+            ).pack(anchor="w")
 
-        ent_uuid = tk.Entry(f, font=("Consolas", 11), relief="solid")
-        ent_uuid.pack(fill="x", pady=(0, 15))
+        def campo_entry():
+            entrada = tk.Entry(
+                contenedor,
+                font=("Segoe UI", 11),
+                relief="solid",
+                bd=1
+            )
+            entrada.pack(fill="x", pady=(6, 16), ipady=6)
+            return entrada
 
-        tk.Label(f, text="Proyecto Asociado:", bg="white").pack(anchor="w")
+        etiqueta("Fecha de pago:")
+        lbl_fecha = tk.Label(
+            contenedor,
+            text=fecha_real,
+            font=("Consolas", 11, "bold"),
+            bg="#f4f6f8",
+            fg="#2c3e50",
+            relief="solid",
+            bd=1,
+            anchor="w",
+            padx=10
+        )
+        lbl_fecha.pack(fill="x", pady=(6, 18), ipady=8)
 
-        cb_proy = ttk.Combobox(f, state="readonly")
-        cb_proy.pack(fill="x", pady=(0, 15))
+        etiqueta("ID Empresa (UUID):")
+        ent_uuid = campo_entry()
+
+        etiqueta("Proyecto asociado:")
+        cb_proy = ttk.Combobox(
+            contenedor,
+            state="readonly",
+            font=("Segoe UI", 10)
+        )
+        cb_proy.pack(fill="x", pady=(6, 16), ipady=5)
 
         def cargar_proyectos(event=None):
             res = self.obtener_lista_db(
@@ -2643,36 +2591,24 @@ class SistemaGestion:
 
             if res:
                 cb_proy.current(0)
+            else:
+                cb_proy.set("")
 
         ent_uuid.bind("<FocusOut>", cargar_proyectos)
+        ent_uuid.bind("<Return>", cargar_proyectos)
 
-        tk.Label(f, text="Monto (Q):", bg="white").pack(anchor="w")
+        etiqueta("Monto pagado (Q):")
+        ent_monto = campo_entry()
 
-        ent_monto = tk.Entry(f, relief="solid")
-        ent_monto.pack(fill="x", pady=(0, 15))
-
-        tk.Label(f, text="Tipo de Pago:", bg="white").pack(anchor="w")
-
+        etiqueta("Método de pago:")
         cb_tipo = ttk.Combobox(
-            f,
-            values=["Efectivo", "Tarjeta", "Transferencia"],
-            state="readonly"
+            contenedor,
+            values=["Efectivo", "Tarjeta", "Transferencia", "Depósito", "Cheque"],
+            state="readonly",
+            font=("Segoe UI", 10)
         )
         cb_tipo.current(0)
-        cb_tipo.pack(fill="x", pady=(0, 15))
-
-        fecha_real = datos_editar[4] if datos_editar else datetime.now().strftime("%d/%m/%Y %H:%M")
-
-        tk.Label(f, text="Fecha de Pago:", bg="white").pack(anchor="w")
-
-        tk.Label(
-            f,
-            text=fecha_real,
-            font=("Consolas", 10),
-            bg="#ecf0f1",
-            relief="sunken",
-            anchor="w"
-        ).pack(fill="x", pady=(0, 20))
+        cb_tipo.pack(fill="x", pady=(6, 20), ipady=5)
 
         if datos_editar:
             ent_uuid.insert(0, datos_editar[0])
@@ -2681,10 +2617,13 @@ class SistemaGestion:
             ent_monto.insert(0, str(datos_editar[2]))
             cb_tipo.set(datos_editar[3])
 
+        botones = tk.Frame(contenedor, bg="white")
+        botones.pack(fill="x", pady=(10, 0))
+
         def editar_existente():
             seleccionado = self.seleccionar_registro(
                 "Editar pago",
-                ("ID", "UUID", "Proyecto", "Monto", "Metodo", "Fecha"),
+                ("ID", "UUID", "Proyecto", "Monto", "Método", "Fecha"),
                 """
                 SELECT id_pago, uuid_empresa, nombre_proyecto, monto, metodo_pago, fecha_pago
                 FROM pagos
@@ -2697,14 +2636,31 @@ class SistemaGestion:
                 self.ventana_pagos(int(seleccionado[0]))
 
         def guardar_pago():
-            if not cb_proy.get() or not ent_monto.get():
-                messagebox.showwarning("Error", "Faltan datos")
+            uuid_emp = ent_uuid.get().strip()
+            proyecto = cb_proy.get().strip()
+            monto_txt = ent_monto.get().strip()
+            metodo = cb_tipo.get().strip()
+
+            if not uuid_emp:
+                messagebox.showwarning("Atención", "Ingrese el ID de empresa.")
+                return
+
+            if not proyecto:
+                messagebox.showwarning("Atención", "Seleccione un proyecto asociado.")
+                return
+
+            if not monto_txt:
+                messagebox.showwarning("Atención", "Ingrese el monto del pago.")
                 return
 
             try:
-                monto = float(ent_monto.get())
+                monto = float(monto_txt)
             except ValueError:
-                messagebox.showwarning("Error", "El monto debe ser numerico.")
+                messagebox.showwarning("Error", "El monto debe ser numérico.")
+                return
+
+            if monto <= 0:
+                messagebox.showwarning("Error", "El monto debe ser mayor que cero.")
                 return
 
             if id_pago_editar:
@@ -2715,15 +2671,15 @@ class SistemaGestion:
                     WHERE id_pago=?
                     """,
                     (
-                        ent_uuid.get().strip(),
-                        cb_proy.get(),
+                        uuid_emp,
+                        proyecto,
                         monto,
-                        cb_tipo.get(),
+                        metodo,
                         id_pago_editar
                     )
                 )
 
-                messagebox.showinfo("Exito", "Pago actualizado")
+                messagebox.showinfo("Éxito", "Pago actualizado correctamente.")
             else:
                 self.ejecutar_db(
                     """
@@ -2732,38 +2688,45 @@ class SistemaGestion:
                     VALUES (?, ?, ?, ?, ?)
                     """,
                     (
-                        ent_uuid.get().strip(),
-                        cb_proy.get(),
+                        uuid_emp,
+                        proyecto,
                         monto,
-                        cb_tipo.get(),
+                        metodo,
                         fecha_real
                     )
                 )
 
-                messagebox.showinfo("Exito", "Pago guardado")
+                messagebox.showinfo("Éxito", "Pago guardado correctamente.")
 
             vp.destroy()
 
         tk.Button(
-            vp,
-            text="GUARDAR CAMBIOS" if id_pago_editar else "CONFIRMAR PAGO",
+            botones,
+            text="💾 GUARDAR CAMBIOS" if id_pago_editar else "💾 CONFIRMAR PAGO",
             bg="#e67e22",
             fg="white",
+            activebackground="#d35400",
+            activeforeground="white",
             font=("Segoe UI", 10, "bold"),
+            bd=0,
             height=2,
+            cursor="hand2",
             command=guardar_pago
-        ).pack(pady=6)
+        ).pack(fill="x", pady=(0, 10))
 
         tk.Button(
-            vp,
-            text="Editar",
+            botones,
+            text="✏️ EDITAR PAGO EXISTENTE",
             bg="#3498db",
             fg="white",
+            activebackground="#2980b9",
+            activeforeground="white",
             font=("Segoe UI", 10, "bold"),
+            bd=0,
             height=2,
+            cursor="hand2",
             command=editar_existente
-        ).pack(pady=6)
-
+        ).pack(fill="x")
     def ventana_facturas(self):
         vf = tk.Toplevel(self.root)
         vf.title("Historial de Facturacion")
