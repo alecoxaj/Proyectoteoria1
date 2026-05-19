@@ -2085,7 +2085,7 @@ class SistemaGestion:
 
             tk.Button(
                 card,
-                text="Copiar ID",
+                text="📋 Copiar ID",
                 bg="#34495e",
                 fg="white",
                 activebackground="#2c3e50",
@@ -2096,6 +2096,33 @@ class SistemaGestion:
                 cursor="hand2",
                 command=copiar_id
             ).pack(fill="x", pady=(22, 0))
+
+        def editar_empresa():
+            seleccionado = obtener_seleccion()
+
+            if not seleccionado:
+                return
+
+            empresa, uuid_emp = seleccionado
+
+            datos = self.obtener_lista_db(
+                """
+                SELECT id_cliente
+                FROM clientes
+                WHERE uuid_empresa=?
+                """,
+                (uuid_emp,)
+            )
+
+            if not datos:
+                messagebox.showerror(
+                    "Error",
+                    "No se encontró la empresa seleccionada."
+                )
+                return
+
+            v.destroy()
+            self.ventana_registrar_cliente_formal(int(datos[0][0]))
 
         def boton_accion(texto, color, comando):
             tk.Button(
@@ -2113,7 +2140,8 @@ class SistemaGestion:
             ).pack(side="left", fill="x", expand=True, padx=5)
 
         boton_accion("📋 Copiar ID", "#34495e", copiar_id)
-        boton_accion("👁 Ver detalle", "#3498db", ver_detalle)
+        boton_accion("👁 Detalle", "#3498db", ver_detalle)
+        boton_accion("✏️ Editar", "#8e44ad", editar_empresa)
         boton_accion("🔄 Actualizar", "#2ecc71", cargar_datos)
 
         ent_buscar.bind("<KeyRelease>", cargar_datos)
