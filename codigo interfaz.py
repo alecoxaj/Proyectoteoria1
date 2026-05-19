@@ -2737,33 +2737,119 @@ class SistemaGestion:
 
     def ventana_facturas(self):
         vf = tk.Toplevel(self.root)
-        vf.title("Historial de Facturacion")
-        vf.geometry("900x560")
+        vf.title("Historial de Facturación")
+        vf.geometry("980x640")
+        vf.configure(bg="#eef2f5")
+
+        header = tk.Frame(vf, bg="#8e44ad", height=78)
+        header.pack(fill="x")
+        header.pack_propagate(False)
 
         tk.Label(
-            vf,
-            text="PAGOS RECIBIDOS / FACTURAS",
-            font=("Segoe UI", 14, "bold"),
-            pady=20
-        ).pack()
+            header,
+            text="📄 Facturas y Pagos",
+            bg="#8e44ad",
+            fg="white",
+            font=("Segoe UI", 20, "bold")
+        ).pack(side="left", padx=28)
 
-        barra = tk.Frame(vf)
-        barra.pack(fill="x", padx=20)
+        tk.Label(
+            header,
+            text="Consulta, guarda o imprime comprobantes de pago",
+            bg="#8e44ad",
+            fg="#f4e9fb",
+            font=("Segoe UI", 10)
+        ).pack(side="left", padx=8)
 
-        cols = ("ID", "Empresa (UUID)", "Proyecto", "Monto", "Metodo", "Fecha")
-        tree = ttk.Treeview(vf, columns=cols, show="headings")
+        contenedor = tk.Frame(vf, bg="#eef2f5")
+        contenedor.pack(fill="both", expand=True, padx=22, pady=20)
+
+        barra = tk.Frame(
+            contenedor,
+            bg="white",
+            padx=14,
+            pady=12,
+            highlightthickness=1,
+            highlightbackground="#d8dee4"
+        )
+        barra.pack(fill="x", pady=(0, 14))
+
+        tk.Label(
+            barra,
+            text="Buscar:",
+            bg="white",
+            fg="#2c3e50",
+            font=("Segoe UI", 10, "bold")
+        ).pack(side="left", padx=(0, 8))
+
+        ent_buscar = tk.Entry(
+            barra,
+            font=("Segoe UI", 10),
+            relief="solid",
+            bd=1,
+            width=34
+        )
+        ent_buscar.pack(side="left", ipady=5, padx=(0, 12))
+
+        tabla_card = tk.Frame(
+            contenedor,
+            bg="white",
+            padx=14,
+            pady=14,
+            highlightthickness=1,
+            highlightbackground="#d8dee4"
+        )
+        tabla_card.pack(fill="both", expand=True)
+
+        tk.Label(
+            tabla_card,
+            text="Pagos registrados",
+            bg="white",
+            fg="#2c3e50",
+            font=("Segoe UI", 13, "bold")
+        ).pack(anchor="w", pady=(0, 10))
+
+        tabla_frame = tk.Frame(tabla_card, bg="white")
+        tabla_frame.pack(fill="both", expand=True)
+
+        cols = ("ID", "Empresa (UUID)", "Proyecto", "Monto", "Método", "Fecha")
+
+        scroll_y = ttk.Scrollbar(tabla_frame, orient="vertical")
+        scroll_x = ttk.Scrollbar(tabla_frame, orient="horizontal")
+
+        tree = ttk.Treeview(
+            tabla_frame,
+            columns=cols,
+            show="headings",
+            yscrollcommand=scroll_y.set,
+            xscrollcommand=scroll_x.set
+        )
+
+        scroll_y.config(command=tree.yview)
+        scroll_x.config(command=tree.xview)
 
         for c in cols:
             tree.heading(c, text=c)
-            tree.column(c, width=120, anchor="center")
 
-        tree.pack(fill="both", expand=True, padx=20, pady=20)
+        tree.column("ID", width=70, anchor="center", stretch=False)
+        tree.column("Empresa (UUID)", width=170, anchor="center", stretch=False)
+        tree.column("Proyecto", width=260, anchor="w", stretch=False)
+        tree.column("Monto", width=120, anchor="center", stretch=False)
+        tree.column("Método", width=130, anchor="center", stretch=False)
+        tree.column("Fecha", width=170, anchor="center", stretch=False)
 
-        def cargar_datos():
-            for item in tree.get_children():
-                tree.delete(item)
+        tree.grid(row=0, column=0, sticky="nsew")
+        scroll_y.grid(row=0, column=1, sticky="ns")
+        scroll_x.grid(row=1, column=0, sticky="ew")
 
-            datos = self.obtener_lista_db(
+        tabla_frame.grid_rowconfigure(0, weight=1)
+        tabla_frame.grid_columnconfigure(0, weight=1)
+
+        botones = tk.Frame(contenedor, bg="#eef2f5")
+        botones.pack(fill="x", pady=(14, 0))
+
+        def obtener_datos():
+            return self.obtener_lista_db(
                 """
                 SELECT id_pago, uuid_empresa, nombre_proyecto, monto, metodo_pago, fecha_pago
                 FROM pagos
@@ -2771,17 +2857,55 @@ class SistemaGestion:
                 """
             )
 
-            for d in datos:
-                tree.insert("", "end", values=d)
+        def cargar_datos(event=None):
+            texto = ent_buscar.get().strip().lower()
+
+            for item in tree.get_children():
+                tree.delete(item)
+
+            for d in obtener_datos():
+                fila_texto = " ".join(str(x).lower() for x in d)
+
+                if texto and texto not in fila_texto:
+                    continue
+
+                id_pago, uuid_emp, proyecto, monto, metodo, fecha = d
+                tree.insert(
+                    "",
+                    "end",
+                    values=(
+                        id_pago,
+                        uuid_emp,
+                        proyecto,
+                        f"Q {float(monto):,.2f}",
+                        metodo,
+                        fecha
+                    )
+                )
 
         def obtener_pago_seleccionado():
             item = tree.selection()
 
             if not item:
-                messagebox.showwarning("Atencion", "Seleccione una factura.")
+                messagebox.showwarning(
+                    "Atención",
+                    "Seleccione una factura."
+                )
                 return None
 
-            return tree.item(item, "values")
+            valores = tree.item(item, "values")
+            id_pago = valores[0]
+
+            datos = self.obtener_lista_db(
+                """
+                SELECT id_pago, uuid_empresa, nombre_proyecto, monto, metodo_pago, fecha_pago
+                FROM pagos
+                WHERE id_pago=?
+                """,
+                (id_pago,)
+            )
+
+            return datos[0] if datos else None
 
         def texto_factura(pago):
             id_pago, uuid_emp, proyecto, monto, metodo, fecha = pago
@@ -2806,7 +2930,7 @@ class SistemaGestion:
                 f"UUID: {uuid_emp}\n"
                 f"Proyecto: {proyecto}\n"
                 f"Monto: Q {float(monto):.2f}\n"
-                f"Metodo de pago: {metodo}\n"
+                f"Método de pago: {metodo}\n"
                 f"Fecha: {fecha}\n"
                 "================================\n"
                 "Gracias por confiar en Espacio Creativo.\n"
@@ -2831,7 +2955,7 @@ class SistemaGestion:
             with open(ruta, "w", encoding="utf-8") as archivo:
                 archivo.write(texto_factura(pago))
 
-            messagebox.showinfo("Exito", f"Factura guardada en:\n{ruta}")
+            messagebox.showinfo("Éxito", f"Factura guardada en:\n{ruta}")
 
         def imprimir_factura():
             pago = obtener_pago_seleccionado()
@@ -2849,39 +2973,64 @@ class SistemaGestion:
 
             try:
                 os.startfile(ruta_temp, "print")
-                messagebox.showinfo("Impresion", "Factura enviada a imprimir.")
+                messagebox.showinfo("Impresión", "Factura enviada a imprimir.")
             except Exception as e:
                 messagebox.showerror(
                     "Error",
-                    f"No se pudo imprimir automaticamente:\n{e}\n\nArchivo generado:\n{ruta_temp}"
+                    f"No se pudo imprimir automáticamente:\n{e}\n\nArchivo generado:\n{ruta_temp}"
                 )
 
-        tk.Button(
-            barra,
-            text="Guardar Factura",
-            command=guardar_factura,
-            bg="#2ecc71",
-            fg="white",
-            width=18
-        ).pack(side="left", padx=5)
+        def ver_factura():
+            pago = obtener_pago_seleccionado()
 
-        tk.Button(
-            barra,
-            text="Imprimir Factura",
-            command=imprimir_factura,
-            bg="#8e44ad",
-            fg="white",
-            width=18
-        ).pack(side="left", padx=5)
+            if not pago:
+                return
 
-        tk.Button(
-            barra,
-            text="Actualizar",
-            command=cargar_datos,
-            bg="#3498db",
-            fg="white",
-            width=18
-        ).pack(side="left", padx=5)
+            preview = tk.Toplevel(vf)
+            preview.title("Vista previa de factura")
+            preview.geometry("520x500")
+            preview.configure(bg="#eef2f5")
+
+            tk.Label(
+                preview,
+                text="Vista previa de factura",
+                bg="#eef2f5",
+                fg="#2c3e50",
+                font=("Segoe UI", 15, "bold")
+            ).pack(pady=(18, 8))
+
+            txt = tk.Text(
+                preview,
+                font=("Consolas", 10),
+                wrap="word",
+                relief="solid",
+                bd=1
+            )
+            txt.pack(fill="both", expand=True, padx=20, pady=12)
+            txt.insert("1.0", texto_factura(pago))
+            txt.config(state="disabled")
+
+        def boton_accion(texto, color, comando):
+            tk.Button(
+                botones,
+                text=texto,
+                command=comando,
+                bg=color,
+                fg="white",
+                activebackground=color,
+                activeforeground="white",
+                font=("Segoe UI", 10, "bold"),
+                bd=0,
+                height=2,
+                cursor="hand2"
+            ).pack(side="left", fill="x", expand=True, padx=5)
+
+        boton_accion("👁 Vista previa", "#34495e", ver_factura)
+        boton_accion("💾 Guardar factura", "#2ecc71", guardar_factura)
+        boton_accion("🖨 Imprimir factura", "#8e44ad", imprimir_factura)
+        boton_accion("🔄 Actualizar", "#3498db", cargar_datos)
+
+        ent_buscar.bind("<KeyRelease>", cargar_datos)
 
         cargar_datos()
 
