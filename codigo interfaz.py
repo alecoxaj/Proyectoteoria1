@@ -381,46 +381,182 @@ class SistemaGestion:
     def seleccionar_registro(self, titulo, columnas, consulta):
         v = tk.Toplevel(self.root)
         v.title(titulo)
-        v.geometry("760x420")
+        v.geometry("840x540")
+        v.configure(bg="#eef2f5")
+
+        header = tk.Frame(v, bg="#3498db", height=72)
+        header.pack(fill="x")
+        header.pack_propagate(False)
 
         tk.Label(
-            v,
-            text=titulo.upper(),
-            font=("Segoe UI", 13, "bold"),
-            pady=15
-        ).pack()
+            header,
+            text=f"✏️ {titulo}",
+            bg="#3498db",
+            fg="white",
+            font=("Segoe UI", 18, "bold")
+        ).pack(side="left", padx=24)
 
-        tree = ttk.Treeview(v, columns=columnas, show="headings")
+        contenedor = tk.Frame(
+            v,
+            bg="#eef2f5"
+        )
+        contenedor.pack(fill="both", expand=True, padx=22, pady=18)
+
+        barra = tk.Frame(
+            contenedor,
+            bg="white",
+            padx=14,
+            pady=12,
+            highlightthickness=1,
+            highlightbackground="#d8dee4"
+        )
+        barra.pack(fill="x", pady=(0, 14))
+
+        tk.Label(
+            barra,
+            text="Buscar:",
+            bg="white",
+            fg="#2c3e50",
+            font=("Segoe UI", 10, "bold")
+        ).pack(side="left", padx=(0, 8))
+
+        ent_buscar = tk.Entry(
+            barra,
+            font=("Segoe UI", 10),
+            relief="solid",
+            bd=1,
+            width=34
+        )
+        ent_buscar.pack(side="left", ipady=5, padx=(0, 12))
+
+        lbl_total = tk.Label(
+            barra,
+            text="0 registros",
+            bg="white",
+            fg="#7f8c8d",
+            font=("Segoe UI", 9, "bold")
+        )
+        lbl_total.pack(side="right")
+
+        tabla_card = tk.Frame(
+            contenedor,
+            bg="white",
+            padx=14,
+            pady=14,
+            highlightthickness=1,
+            highlightbackground="#d8dee4"
+        )
+        tabla_card.pack(fill="both", expand=True)
+
+        tk.Label(
+            tabla_card,
+            text="Seleccione un registro",
+            bg="white",
+            fg="#2c3e50",
+            font=("Segoe UI", 13, "bold")
+        ).pack(anchor="w", pady=(0, 10))
+
+        tabla_frame = tk.Frame(tabla_card, bg="white")
+        tabla_frame.pack(fill="both", expand=True)
+
+        scroll_y = ttk.Scrollbar(tabla_frame, orient="vertical")
+        scroll_x = ttk.Scrollbar(tabla_frame, orient="horizontal")
+
+        tree = ttk.Treeview(
+            tabla_frame,
+            columns=columnas,
+            show="headings",
+            yscrollcommand=scroll_y.set,
+            xscrollcommand=scroll_x.set
+        )
+
+        scroll_y.config(command=tree.yview)
+        scroll_x.config(command=tree.xview)
 
         for col in columnas:
             tree.heading(col, text=col)
-            tree.column(col, width=130, anchor="center")
+            tree.column(col, width=160, anchor="center", stretch=False)
 
-        tree.pack(expand=True, fill="both", padx=20, pady=10)
+        if len(columnas) >= 2:
+            tree.column(columnas[1], width=260, anchor="w", stretch=False)
 
-        for registro in self.obtener_lista_db(consulta):
-            tree.insert("", "end", values=registro)
+        tree.grid(row=0, column=0, sticky="nsew")
+        scroll_y.grid(row=0, column=1, sticky="ns")
+        scroll_x.grid(row=1, column=0, sticky="ew")
 
+        tabla_frame.grid_rowconfigure(0, weight=1)
+        tabla_frame.grid_columnconfigure(0, weight=1)
+
+        botones = tk.Frame(contenedor, bg="#eef2f5")
+        botones.pack(fill="x", pady=(14, 0))
+
+        datos_originales = self.obtener_lista_db(consulta)
         seleccion = {"values": None}
+
+        def cargar_tabla(event=None):
+            texto = ent_buscar.get().strip().lower()
+            contador = 0
+
+            for item in tree.get_children():
+                tree.delete(item)
+
+            for registro in datos_originales:
+                fila_texto = " ".join(str(x).lower() for x in registro)
+
+                if texto and texto not in fila_texto:
+                    continue
+
+                tree.insert("", "end", values=registro)
+                contador += 1
+
+            lbl_total.config(text=f"{contador} registros")
 
         def aceptar(event=None):
             item = tree.selection()
+
             if not item:
-                messagebox.showwarning("Atención", "Selecciona un registro.")
+                messagebox.showwarning("Atención", "Seleccione un registro.")
                 return
 
             seleccion["values"] = tree.item(item, "values")
             v.destroy()
 
-        tk.Button(
-            v,
-            text="EDITAR SELECCIONADO",
-            command=aceptar,
-            bg="#3498db",
-            fg="white"
-        ).pack(pady=10)
+        def cancelar():
+            seleccion["values"] = None
+            v.destroy()
 
+        tk.Button(
+            botones,
+            text="✅ SELECCIONAR",
+            command=aceptar,
+            bg="#2ecc71",
+            fg="white",
+            activebackground="#27ae60",
+            activeforeground="white",
+            font=("Segoe UI", 10, "bold"),
+            bd=0,
+            height=2,
+            cursor="hand2"
+        ).pack(side="left", fill="x", expand=True, padx=(0, 6))
+
+        tk.Button(
+            botones,
+            text="Cancelar",
+            command=cancelar,
+            bg="#95a5a6",
+            fg="white",
+            activebackground="#7f8c8d",
+            activeforeground="white",
+            font=("Segoe UI", 10, "bold"),
+            bd=0,
+            height=2,
+            cursor="hand2"
+        ).pack(side="left", fill="x", expand=True, padx=(6, 0))
+
+        ent_buscar.bind("<KeyRelease>", cargar_tabla)
         tree.bind("<Double-1>", aceptar)
+
+        cargar_tabla()
         self.root.wait_window(v)
         return seleccion["values"]
 
@@ -874,57 +1010,130 @@ class SistemaGestion:
 
     def ventana_registrar_cliente_formal(self, id_cliente_editar=None):
         v = tk.Toplevel(self.root)
-        v.title("Registrar Publicidad (Empresa)")
-        v.geometry("450x690")
-        v.configure(bg="white")
+        v.title("Registrar Publicidad / Empresa")
+        v.geometry("540x660")
+        v.configure(bg="#eef2f5")
+        v.resizable(False, False)
 
         datos_editar = None
+        uuid_editar = ""
 
         if id_cliente_editar:
             datos = self.obtener_lista_db(
                 """
-                SELECT nombre_empresa, telefono_referido, correo, direccion_empresa
+                SELECT nombre_empresa, telefono_referido, correo, direccion_empresa, uuid_empresa
                 FROM clientes
                 WHERE id_cliente=?
                 """,
                 (id_cliente_editar,)
             )
-            datos_editar = datos[0] if datos else None
 
-        titulo = "EDITAR PUBLICIDAD" if id_cliente_editar else "REGISTRAR PUBLICIDAD"
+            if datos:
+                datos_editar = datos[0]
+                uuid_editar = datos_editar[4]
+
+        titulo_formulario = "Editar empresa registrada" if id_cliente_editar else "Registrar nueva empresa"
+
+        header = tk.Frame(v, bg="#3498db", height=78)
+        header.pack(fill="x")
+        header.pack_propagate(False)
 
         tk.Label(
+            header,
+            text="👥 Registrar Publicidad",
+            bg="#3498db",
+            fg="white",
+            font=("Segoe UI", 20, "bold")
+        ).pack(side="left", padx=28)
+
+        contenedor = tk.Frame(
             v,
-            text=titulo,
-            font=("Segoe UI", 16, "bold"),
             bg="white",
-            fg="#3498db"
-        ).pack(pady=30)
+            padx=32,
+            pady=24,
+            highlightthickness=1,
+            highlightbackground="#d8dee4"
+        )
+        contenedor.pack(fill="both", expand=True, padx=28, pady=24)
 
-        f = tk.Frame(v, bg="white", padx=40)
-        f.pack(fill="both")
+        tk.Label(
+            contenedor,
+            text=titulo_formulario,
+            bg="white",
+            fg="#2c3e50",
+            font=("Segoe UI", 16, "bold")
+        ).pack(anchor="w", pady=(0, 6))
 
-        tk.Label(f, text="Nombre de la Empresa:", bg="white").pack(anchor="w")
-        nom_e = tk.Entry(f, relief="solid", bd=1)
-        nom_e.pack(fill="x", pady=(5, 15))
+        tk.Label(
+            contenedor,
+            text="Guarde los datos de la empresa para asociarla a proyectos, pagos y publicidad.",
+            bg="white",
+            fg="#7f8c8d",
+            font=("Segoe UI", 9),
+            wraplength=440,
+            justify="left"
+        ).pack(anchor="w", pady=(0, 16))
 
-        tk.Label(f, text="Numero Telefonico Referido:", bg="white").pack(anchor="w")
-        tel_e = tk.Entry(f, relief="solid", bd=1)
-        tel_e.pack(fill="x", pady=(5, 15))
+        id_texto = f"ID Personal: {uuid_editar}" if id_cliente_editar else "El ID Personal se generará automáticamente al guardar."
 
-        tk.Label(f, text="Correo Electronico:", bg="white").pack(anchor="w")
-        cor_e = tk.Entry(f, relief="solid", bd=1)
-        cor_e.pack(fill="x", pady=(5, 15))
+        tk.Label(
+            contenedor,
+            text=id_texto,
+            bg="#f4f6f8",
+            fg="#2c3e50",
+            font=("Consolas", 10, "bold"),
+            relief="solid",
+            bd=1,
+            anchor="w",
+            padx=10
+        ).pack(fill="x", pady=(0, 18), ipady=7)
 
-        tk.Label(f, text="Direccion de la Empresa:", bg="white").pack(anchor="w")
-        dir_e = tk.Entry(f, relief="solid", bd=1)
-        dir_e.pack(fill="x", pady=(5, 30))
+        def etiqueta(texto):
+            tk.Label(
+                contenedor,
+                text=texto,
+                bg="white",
+                fg="#2c3e50",
+                font=("Segoe UI", 9, "bold")
+            ).pack(anchor="w")
+
+        def campo():
+            entrada = tk.Entry(
+                contenedor,
+                font=("Segoe UI", 10),
+                relief="solid",
+                bd=1
+            )
+            entrada.pack(fill="x", pady=(4, 12), ipady=5)
+            return entrada
+
+        etiqueta("Nombre de la empresa:")
+        nom_e = campo()
+
+        etiqueta("Número telefónico referido:")
+        tel_e = campo()
+
+        etiqueta("Correo electrónico:")
+        cor_e = campo()
+
+        etiqueta("Dirección de la empresa:")
+        dir_e = campo()
 
         if datos_editar:
             nom_e.insert(0, datos_editar[0])
             tel_e.insert(0, datos_editar[1] or "")
             cor_e.insert(0, datos_editar[2] or "")
             dir_e.insert(0, datos_editar[3] or "")
+
+        botones = tk.Frame(contenedor, bg="white")
+        botones.pack(fill="x", pady=(8, 0))
+
+        def limpiar_campos():
+            nom_e.delete(0, tk.END)
+            tel_e.delete(0, tk.END)
+            cor_e.delete(0, tk.END)
+            dir_e.delete(0, tk.END)
+            nom_e.focus()
 
         def editar_existente():
             seleccionado = self.seleccionar_registro(
@@ -943,11 +1152,21 @@ class SistemaGestion:
 
         def guardar():
             nombre = nom_e.get().strip()
+            telefono = tel_e.get().strip()
+            correo = cor_e.get().strip()
+            direccion = dir_e.get().strip()
 
             if not nombre:
                 messagebox.showwarning(
-                    "Atencion",
+                    "Atención",
                     "El nombre de la empresa es obligatorio."
+                )
+                return
+
+            if correo and "@" not in correo:
+                messagebox.showwarning(
+                    "Atención",
+                    "Ingrese un correo válido o deje el campo vacío."
                 )
                 return
 
@@ -963,7 +1182,7 @@ class SistemaGestion:
             if existe:
                 messagebox.showerror(
                     "Error",
-                    f"La empresa '{nombre}' ya esta registrada."
+                    f"La empresa '{nombre}' ya está registrada."
                 )
                 return
 
@@ -977,15 +1196,15 @@ class SistemaGestion:
                         """,
                         (
                             nombre,
-                            tel_e.get(),
-                            cor_e.get(),
-                            dir_e.get(),
+                            telefono,
+                            correo,
+                            direccion,
                             id_cliente_editar
                         )
                     )
 
                     messagebox.showinfo(
-                        "Exito",
+                        "Éxito",
                         "Empresa actualizada correctamente."
                     )
                 else:
@@ -999,46 +1218,67 @@ class SistemaGestion:
                         """,
                         (
                             nombre,
-                            tel_e.get(),
-                            cor_e.get(),
-                            dir_e.get(),
+                            telefono,
+                            correo,
+                            direccion,
                             id_personal
                         )
                     )
 
                     messagebox.showinfo(
-                        "Exito",
-                        f"Empresa registrada.\nID PERSONAL: {id_personal}"
+                        "Éxito",
+                        f"Empresa registrada correctamente.\n\nID PERSONAL: {id_personal}"
                     )
 
                 v.destroy()
 
             except Exception as e:
-                messagebox.showerror("Error", f"No se pudo guardar: {e}")
+                messagebox.showerror("Error", f"No se pudo guardar:\n{e}")
 
         tk.Button(
-            v,
-            text="Guardar Cambios" if id_cliente_editar else "Guardar Registro",
+            botones,
+            text="💾 GUARDAR CAMBIOS" if id_cliente_editar else "💾 GUARDAR REGISTRO",
             bg="#2ecc71",
             fg="white",
-            font=("Segoe UI", 11, "bold"),
-            relief="flat",
+            activebackground="#27ae60",
+            activeforeground="white",
+            font=("Segoe UI", 10, "bold"),
+            bd=0,
             height=2,
-            width=30,
+            cursor="hand2",
             command=guardar
-        ).pack(pady=6)
+        ).pack(fill="x", pady=(0, 8))
+
+        fila_botones = tk.Frame(botones, bg="white")
+        fila_botones.pack(fill="x")
 
         tk.Button(
-            v,
-            text="Editar",
+            fila_botones,
+            text="✏️ EDITAR EXISTENTE",
             bg="#3498db",
             fg="white",
+            activebackground="#2980b9",
+            activeforeground="white",
             font=("Segoe UI", 10, "bold"),
-            relief="flat",
-            height=2,
-            width=30,
+            bd=0,
+            height=3,
+            cursor="hand2",
             command=editar_existente
-        ).pack(pady=6)
+        ).pack(side="left", fill="x", expand=True, padx=(0, 6))
+
+        tk.Button(
+            fila_botones,
+            text="🧹 LIMPIAR",
+            bg="#95a5a6",
+            fg="white",
+            activebackground="#7f8c8d",
+            activeforeground="white",
+            font=("Segoe UI", 10, "bold"),
+            bd=0,
+            height=3,
+            cursor="hand2",
+            command=limpiar_campos
+        ).pack(side="left", fill="x", expand=True, padx=(6, 0))
 
     def ventana_crear_proyecto(self, id_proyecto_editar=None):
         v = tk.Toplevel(self.root)
@@ -1373,31 +1613,269 @@ class SistemaGestion:
     def ventana_portal_empresa(self):
         v = tk.Toplevel(self.root)
         v.title("Portal ID de Empresas")
-        v.geometry("600x400")
+        v.geometry("760x560")
+        v.configure(bg="#eef2f5")
+
+        header = tk.Frame(v, bg="#34495e", height=78)
+        header.pack(fill="x")
+        header.pack_propagate(False)
 
         tk.Label(
-            v,
-            text="DIRECTORIO DE IDENTIFICADORES",
-            font=("Segoe UI", 14, "bold"),
-            pady=20
-        ).pack()
+            header,
+            text="🆔 Portal ID",
+            bg="#34495e",
+            fg="white",
+            font=("Segoe UI", 20, "bold")
+        ).pack(side="left", padx=28)
+
+        tk.Label(
+            header,
+            text="Directorio de identificadores de empresas",
+            bg="#34495e",
+            fg="#dfe6e9",
+            font=("Segoe UI", 10)
+        ).pack(side="left", padx=8)
+
+        contenedor = tk.Frame(v, bg="#eef2f5")
+        contenedor.pack(fill="both", expand=True, padx=22, pady=20)
+
+        barra = tk.Frame(
+            contenedor,
+            bg="white",
+            padx=14,
+            pady=12,
+            highlightthickness=1,
+            highlightbackground="#d8dee4"
+        )
+        barra.pack(fill="x", pady=(0, 14))
+
+        tk.Label(
+            barra,
+            text="Buscar:",
+            bg="white",
+            fg="#2c3e50",
+            font=("Segoe UI", 10, "bold")
+        ).pack(side="left", padx=(0, 8))
+
+        ent_buscar = tk.Entry(
+            barra,
+            font=("Segoe UI", 10),
+            relief="solid",
+            bd=1,
+            width=34
+        )
+        ent_buscar.pack(side="left", ipady=5, padx=(0, 12))
+
+        lbl_total = tk.Label(
+            barra,
+            text="0 empresas",
+            bg="white",
+            fg="#7f8c8d",
+            font=("Segoe UI", 9, "bold")
+        )
+        lbl_total.pack(side="right")
+
+        tabla_card = tk.Frame(
+            contenedor,
+            bg="white",
+            padx=14,
+            pady=14,
+            highlightthickness=1,
+            highlightbackground="#d8dee4"
+        )
+        tabla_card.pack(fill="both", expand=True)
+
+        tk.Label(
+            tabla_card,
+            text="Empresas registradas",
+            bg="white",
+            fg="#2c3e50",
+            font=("Segoe UI", 13, "bold")
+        ).pack(anchor="w", pady=(0, 10))
+
+        tabla_frame = tk.Frame(tabla_card, bg="white")
+        tabla_frame.pack(fill="both", expand=True)
 
         cols = ("Empresa", "UUID / ID Personal")
-        tree = ttk.Treeview(v, columns=cols, show="headings")
+
+        scroll_y = ttk.Scrollbar(tabla_frame, orient="vertical")
+        scroll_x = ttk.Scrollbar(tabla_frame, orient="horizontal")
+
+        tree = ttk.Treeview(
+            tabla_frame,
+            columns=cols,
+            show="headings",
+            yscrollcommand=scroll_y.set,
+            xscrollcommand=scroll_x.set
+        )
+
+        scroll_y.config(command=tree.yview)
+        scroll_x.config(command=tree.xview)
 
         tree.heading("Empresa", text="Empresa")
-        tree.heading("UUID / ID Personal", text="UUID Personal")
+        tree.heading("UUID / ID Personal", text="UUID / ID Personal")
 
-        tree.pack(expand=True, fill="both", padx=20, pady=20)
+        tree.column("Empresa", width=320, anchor="w", stretch=False)
+        tree.column("UUID / ID Personal", width=260, anchor="center", stretch=False)
 
-        for d in self.obtener_lista_db(
-            """
-            SELECT nombre_empresa, uuid_empresa
-            FROM clientes
-            ORDER BY nombre_empresa
-            """
-        ):
-            tree.insert("", "end", values=d)
+        tree.grid(row=0, column=0, sticky="nsew")
+        scroll_y.grid(row=0, column=1, sticky="ns")
+        scroll_x.grid(row=1, column=0, sticky="ew")
+
+        tabla_frame.grid_rowconfigure(0, weight=1)
+        tabla_frame.grid_columnconfigure(0, weight=1)
+
+        botones = tk.Frame(contenedor, bg="#eef2f5")
+        botones.pack(fill="x", pady=(14, 0))
+
+        def obtener_datos():
+            return self.obtener_lista_db(
+                """
+                SELECT nombre_empresa, uuid_empresa
+                FROM clientes
+                ORDER BY nombre_empresa
+                """
+            )
+
+        def cargar_datos(event=None):
+            texto = ent_buscar.get().strip().lower()
+            contador = 0
+
+            for item in tree.get_children():
+                tree.delete(item)
+
+            for empresa, uuid_emp in obtener_datos():
+                fila_texto = f"{empresa} {uuid_emp}".lower()
+
+                if texto and texto not in fila_texto:
+                    continue
+
+                tree.insert("", "end", values=(empresa, uuid_emp))
+                contador += 1
+
+            lbl_total.config(text=f"{contador} empresas")
+
+        def obtener_seleccion():
+            item = tree.selection()
+
+            if not item:
+                messagebox.showwarning(
+                    "Atención",
+                    "Selecciona una empresa."
+                )
+                return None
+
+            return tree.item(item, "values")
+
+        def copiar_id():
+            seleccionado = obtener_seleccion()
+
+            if not seleccionado:
+                return
+
+            uuid_emp = seleccionado[1]
+            v.clipboard_clear()
+            v.clipboard_append(uuid_emp)
+            messagebox.showinfo("Copiado", f"ID copiado:\n{uuid_emp}")
+
+        def ver_detalle():
+            seleccionado = obtener_seleccion()
+
+            if not seleccionado:
+                return
+
+            empresa, uuid_emp = seleccionado
+
+            datos = self.obtener_lista_db(
+                """
+                SELECT telefono_referido, correo, direccion_empresa
+                FROM clientes
+                WHERE uuid_empresa=?
+                """,
+                (uuid_emp,)
+            )
+
+            telefono, correo, direccion = datos[0] if datos else ("", "", "")
+
+            detalle = tk.Toplevel(v)
+            detalle.title("Detalle de empresa")
+            detalle.geometry("480x360")
+            detalle.configure(bg="#eef2f5")
+
+            card = tk.Frame(
+                detalle,
+                bg="white",
+                padx=24,
+                pady=22,
+                highlightthickness=1,
+                highlightbackground="#d8dee4"
+            )
+            card.pack(fill="both", expand=True, padx=22, pady=22)
+
+            tk.Label(
+                card,
+                text=empresa,
+                bg="white",
+                fg="#2c3e50",
+                font=("Segoe UI", 15, "bold"),
+                wraplength=400,
+                justify="left"
+            ).pack(anchor="w", pady=(0, 12))
+
+            texto = (
+                f"ID Personal: {uuid_emp}\n\n"
+                f"Teléfono: {telefono or 'No registrado'}\n"
+                f"Correo: {correo or 'No registrado'}\n"
+                f"Dirección: {direccion or 'No registrada'}"
+            )
+
+            tk.Label(
+                card,
+                text=texto,
+                bg="white",
+                fg="#2c3e50",
+                font=("Segoe UI", 10),
+                justify="left",
+                wraplength=400
+            ).pack(anchor="w")
+
+            tk.Button(
+                card,
+                text="Copiar ID",
+                bg="#34495e",
+                fg="white",
+                activebackground="#2c3e50",
+                activeforeground="white",
+                font=("Segoe UI", 10, "bold"),
+                bd=0,
+                height=2,
+                cursor="hand2",
+                command=copiar_id
+            ).pack(fill="x", pady=(22, 0))
+
+        def boton_accion(texto, color, comando):
+            tk.Button(
+                botones,
+                text=texto,
+                command=comando,
+                bg=color,
+                fg="white",
+                activebackground=color,
+                activeforeground="white",
+                font=("Segoe UI", 10, "bold"),
+                bd=0,
+                height=2,
+                cursor="hand2"
+            ).pack(side="left", fill="x", expand=True, padx=5)
+
+        boton_accion("📋 Copiar ID", "#34495e", copiar_id)
+        boton_accion("👁 Ver detalle", "#3498db", ver_detalle)
+        boton_accion("🔄 Actualizar", "#2ecc71", cargar_datos)
+
+        ent_buscar.bind("<KeyRelease>", cargar_datos)
+        tree.bind("<Double-1>", lambda e: ver_detalle())
+
+        cargar_datos()
 
     def ventana_publicidad_editor(self, id_editar=None, id_pub_editar=None):
 
@@ -2889,7 +3367,7 @@ class SistemaGestion:
             if not item:
                 messagebox.showwarning(
                     "Atención",
-                    "Seleccione una factura."
+                    "Selecciona una factura."
                 )
                 return None
 
@@ -3640,8 +4118,8 @@ class SistemaGestion:
             confirmar = messagebox.askyesno(
                 "Restaurar respaldo",
                 "Esto reemplazara la base de datos actual por la del respaldo seleccionado.\n\n"
-                "Antes de continuar se creara un respaldo de seguridad del estado actual.\n\n"
-                "Desea continuar?"
+                "Antes de continuar se creará un respaldo de seguridad del estado actual.\n\n"
+                "Deseas continuar?"
             )
 
             if not confirmar:
@@ -3651,8 +4129,8 @@ class SistemaGestion:
                 self.crear_respaldo_automatico()
                 self.restaurar_archivo_respaldo(ruta)
                 messagebox.showinfo(
-                    "Restauracion completa",
-                    "Los datos fueron restaurados. Cierre y abra de nuevo el programa para cargar todo correctamente."
+                    "Restauración completa",
+                    "Los datos fueron restaurados. Cierra y abre de nuevo el programa para cargar todo correctamente."
                 )
             except Exception as e:
                 messagebox.showerror("Error", f"No se pudo restaurar el respaldo:\n{e}")
@@ -3680,7 +4158,7 @@ class SistemaGestion:
 
         tk.Label(
             v,
-            text="Consejo: haga un respaldo manual al terminar cada dia de trabajo importante.",
+            text="Consejo: haz un respaldo manual al terminar cada dia de trabajo importante.",
             bg="#f4f7f6",
             fg="#7f8c8d",
             font=("Segoe UI", 9, "italic")
