@@ -2906,13 +2906,13 @@ class SistemaGestion:
 
                 messagebox.showinfo(
                     "¡Proyecto retomado!",
-                    f"El proyecto '{nombre}' de tipo '{tipo}' ahora está en estado Trabajando."
+                    f"El proyecto '{nombre}' ahora está en estado Trabajando."
                 )
 
-                v.destroy()
-                self.ventana_crear_proyecto(int(id_registro))
+                buscar()
+                return
 
-            elif origen == "Publicidad":
+            if origen == "Publicidad":
                 self.ejecutar_db(
                     """
                     UPDATE publicidad
@@ -2922,8 +2922,13 @@ class SistemaGestion:
                     ("Trabajando", id_registro)
                 )
 
-                v.destroy()
-                self.ventana_publicidad_editor(id_pub_editar=int(id_registro))
+                messagebox.showinfo(
+                    "¡Publicidad retomada!",
+                    f"La publicidad '{nombre}' ahora está en estado Trabajando."
+                )
+
+                buscar()
+                return
 
         def editar_publicidad():
             seleccionado = obtener_seleccion()
@@ -4483,9 +4488,9 @@ class SistemaGestion:
 
             confirmar = messagebox.askyesno(
                 "Restaurar respaldo",
-                "Esto reemplazara la base de datos actual por la del respaldo seleccionado.\n\n"
+                "Esto reemplazará la base de datos actual por la del respaldo seleccionado.\n\n"
                 "Antes de continuar se creará un respaldo de seguridad del estado actual.\n\n"
-                "Deseas continuar?"
+                "¿Deseas continuar?"
             )
 
             if not confirmar:
@@ -4494,12 +4499,25 @@ class SistemaGestion:
             try:
                 self.crear_respaldo_automatico()
                 self.restaurar_archivo_respaldo(ruta)
+
+                # Vuelve a preparar tablas por si el respaldo viene de una versión anterior.
+                self.inicializar_db_formal()
+
                 messagebox.showinfo(
                     "Restauración completa",
-                    "Los datos fueron restaurados. Cierra y abre de nuevo el programa para cargar todo correctamente."
+                    "Los datos fueron restaurados y cargados correctamente."
                 )
+
+                v.destroy()
+
+                # Recarga la pantalla principal sin cerrar el programa.
+                self.menu_principal()
+
             except Exception as e:
-                messagebox.showerror("Error", f"No se pudo restaurar el respaldo:\n{e}")
+                messagebox.showerror(
+                    "Error",
+                    f"No se pudo restaurar el respaldo:\n{e}"
+                )
 
         botones = [
             ("Crear respaldo ahora", "#2ecc71", respaldo_manual),
