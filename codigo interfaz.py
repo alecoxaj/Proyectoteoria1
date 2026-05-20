@@ -948,7 +948,7 @@ class SistemaGestion:
         modulos = [
             ("Registrar Publicidad", "#3498db", "👥", self.ventana_registrar_cliente_formal),
             ("Crear Proyecto", "#2ecc71", "➕", self.ventana_crear_proyecto),
-            ("Historial Pro", "#9b59b6", "📋", self.ventana_historial),
+            ("Historial", "#9b59b6", "📋", self.ventana_historial),
             ("Publicidad", "#f1c40f", "🎨", self.ventana_publicidad_editor),
             ("Continuar", "#e74c3c", "🚀", self.ventana_continuar_proyecto),
             ("Pagos", "#e67e22", "💰", self.ventana_pagos),
@@ -1609,6 +1609,27 @@ class SistemaGestion:
         ).pack(side="left", fill="x", expand=True, padx=(6, 0))
 
     def ventana_historial(self):
+        try:
+            conn = sqlite3.connect(self.ruta_db)
+            c = conn.cursor()
+            c.execute("PRAGMA table_info(proyectos)")
+            columnas = [col[1] for col in c.fetchall()]
+
+            if "tipo" not in columnas:
+                c.execute("ALTER TABLE proyectos ADD COLUMN tipo TEXT DEFAULT 'Proyecto'")
+                c.execute("""
+                          UPDATE proyectos
+                          SET tipo='Proyecto'
+                          WHERE tipo IS NULL
+                             OR TRIM(tipo) = ''
+                          """)
+
+            conn.commit()
+            conn.close()
+        except Exception as e:
+            messagebox.showerror("Error", f"No se pudo preparar la tabla proyectos:\n{e}")
+            return
+
         v = tk.Toplevel(self.root)
         v.title("Historial de Proyecto y Empresas")
         v.geometry("1120x720")
@@ -1666,7 +1687,7 @@ class SistemaGestion:
 
         tk.Label(
             filtros,
-            text="Proyecto:",
+            text="Proyecto o tipo:",
             bg="white",
             fg="#2c3e50",
             font=("Segoe UI", 10, "bold")
@@ -1764,7 +1785,7 @@ class SistemaGestion:
         frame_proyectos = tk.Frame(panel_proyectos, bg="white")
         frame_proyectos.pack(fill="both", expand=True)
 
-        cols_p = ("Proyecto", "Fecha Inicio", "Estado", "Empresa Relacionada")
+        cols_p = ("Proyecto", "Tipo", "Fecha Inicio", "Estado", "Empresa Relacionada")
 
         scroll_p_y = ttk.Scrollbar(frame_proyectos, orient="vertical")
         scroll_p_x = ttk.Scrollbar(frame_proyectos, orient="horizontal")
@@ -1783,10 +1804,11 @@ class SistemaGestion:
         for col in cols_p:
             tree_proyectos.heading(col, text=col)
 
-        tree_proyectos.column("Proyecto", width=240, anchor="w", stretch=False)
+        tree_proyectos.column("Proyecto", width=220, anchor="w", stretch=False)
+        tree_proyectos.column("Tipo", width=130, anchor="center", stretch=False)
         tree_proyectos.column("Fecha Inicio", width=120, anchor="center", stretch=False)
         tree_proyectos.column("Estado", width=120, anchor="center", stretch=False)
-        tree_proyectos.column("Empresa Relacionada", width=240, anchor="w", stretch=False)
+        tree_proyectos.column("Empresa Relacionada", width=220, anchor="w", stretch=False)
 
         tree_proyectos.grid(row=0, column=0, sticky="nsew")
         scroll_p_y.grid(row=0, column=1, sticky="ns")
@@ -1809,10 +1831,10 @@ class SistemaGestion:
             nom_busc = ent_nom_busq.get().strip()
 
             query_c = """
-                SELECT nombre_empresa, uuid_empresa
-                FROM clientes
-                WHERE 1=1
-            """
+                      SELECT nombre_empresa, uuid_empresa
+                      FROM clientes
+                      WHERE 1 = 1 \
+                      """
             params_c = []
 
             if id_busc:
@@ -1828,11 +1850,15 @@ class SistemaGestion:
                 total_empresas += 1
 
             query_p = """
-                SELECT p.nombre, p.fecha_inicio, p.estado, c.nombre_empresa
-                FROM proyectos p
-                JOIN clientes c ON p.id_cliente = c.id_cliente
-                WHERE 1=1
-            """
+                      SELECT p.nombre, \
+                             COALESCE(NULLIF(TRIM(p.tipo), ''), 'Proyecto'), \
+                             p.fecha_inicio, \
+                             p.estado, \
+                             c.nombre_empresa
+                      FROM proyectos p
+                               JOIN clientes c ON p.id_cliente = c.id_cliente
+                      WHERE 1 = 1 \
+                      """
 
             params_p = []
 
@@ -1841,7 +1867,13 @@ class SistemaGestion:
                 params_p.append(f"%{id_busc}%")
 
             if nom_busc:
-                query_p += " AND p.nombre LIKE ?"
+                query_p += """
+                    AND (
+                        p.nombre LIKE ?
+                        OR COALESCE(NULLIF(TRIM(p.tipo), ''), 'Proyecto') LIKE ?
+                    )
+                """
+                params_p.append(f"%{nom_busc}%")
                 params_p.append(f"%{nom_busc}%")
 
             query_p += " ORDER BY p.id_proyecto DESC"
@@ -2257,7 +2289,7 @@ class SistemaGestion:
         tk.Label(panel_datos, text="Transparencia:", bg="white").pack(side="left", padx=(0, 6))
         alpha = tk.IntVar(value=100)
 
-        tk.Scale(
+        escala_transparencia = tk.Scale(
             panel_datos,
             from_=20,
             to=100,
@@ -2267,7 +2299,8 @@ class SistemaGestion:
             bg="white",
             fg="#2c3e50",
             highlightthickness=0
-        ).pack(side="left")
+        )
+        escala_transparencia.pack(side="left")
 
         barra = tk.Frame(v, bg="#243447", height=140)
         barra.pack(side="bottom", fill="x")
@@ -2306,6 +2339,19 @@ class SistemaGestion:
             if self.img_original:
                 historial_imagenes.append(self.img_original.copy())
 
+        def obtener_imagen_con_transparencia():
+            if not self.img_original:
+                return None
+
+            imagen = self.img_original.copy().convert("RGBA")
+            factor = alpha.get() / 100
+
+            r, g, b, a = imagen.split()
+            nueva_alpha = a.point(lambda p: int(p * factor))
+            imagen.putalpha(nueva_alpha)
+
+            return imagen
+
         def actualizar_preview():
             canvas.delete("all")
             canvas.update_idletasks()
@@ -2314,7 +2360,7 @@ class SistemaGestion:
             alto = max(canvas.winfo_height(), 430)
 
             if self.img_original:
-                img_copy = self.img_original.copy()
+                img_copy = obtener_imagen_con_transparencia()
                 img_copy.thumbnail((ancho - 40, alto - 40))
                 self.img_tk = ImageTk.PhotoImage(img_copy)
                 canvas.create_image(ancho / 2, alto / 2, image=self.img_tk)
@@ -2333,6 +2379,8 @@ class SistemaGestion:
                     fill="#7f8c8d",
                     font=("Segoe UI", 13, "bold")
                 )
+
+        escala_transparencia.configure(command=lambda valor: actualizar_preview())
 
         def boton(padre, texto, color, comando, ancho=15):
             tk.Button(
@@ -2410,6 +2458,7 @@ class SistemaGestion:
             if path:
                 self.img_original = Image.open(path)
                 self.path_actual = path
+                alpha.set(100)
                 historial_imagenes.clear()
                 actualizar_preview()
 
@@ -2430,6 +2479,7 @@ class SistemaGestion:
             self.img_original = None
             self.img_tk = None
             self.path_actual = ""
+            alpha.set(100)
             actualizar_preview()
 
         def recortar_centro():
@@ -2452,43 +2502,6 @@ class SistemaGestion:
             guardar_estado()
             self.img_original = ImageOps.grayscale(self.img_original)
             actualizar_preview()
-
-        def hacer_transparente():
-            if not self.img_original:
-                messagebox.showwarning("Atención", "Primero sube una imagen.")
-                return
-
-            try:
-                from PIL import ImageChops
-
-                v.config(cursor="watch")
-                v.update_idletasks()
-                guardar_estado()
-
-                img = self.img_original.convert("RGBA")
-                r, g, b, a = img.split()
-
-                mask_r = r.point(lambda p: 255 if p > 235 else 0)
-                mask_g = g.point(lambda p: 255 if p > 235 else 0)
-                mask_b = b.point(lambda p: 255 if p > 235 else 0)
-
-                mascara_blancos = ImageChops.multiply(
-                    ImageChops.multiply(mask_r, mask_g),
-                    mask_b
-                )
-
-                factor = alpha.get() / 100
-                nueva_alpha = a.point(lambda p: int(p * factor))
-                nueva_alpha = ImageChops.subtract(nueva_alpha, mascara_blancos)
-
-                img.putalpha(nueva_alpha)
-                self.img_original = img
-                actualizar_preview()
-
-            except Exception as e:
-                messagebox.showerror("Error", f"No se pudo aplicar transparencia:\n{e}")
-            finally:
-                v.config(cursor="")
 
         def deshacer_cambio():
             if not historial_imagenes:
@@ -2527,7 +2540,7 @@ class SistemaGestion:
             if not ruta:
                 return
 
-            imagen = self.img_original
+            imagen = obtener_imagen_con_transparencia()
 
             if ruta.lower().endswith((".jpg", ".jpeg")):
                 imagen = imagen.convert("RGB")
@@ -2542,7 +2555,8 @@ class SistemaGestion:
                 return
 
             ruta_temp = os.path.join(os.path.dirname(self.ruta_db), "publicidad_editada.png")
-            self.img_original.save(ruta_temp)
+            imagen = obtener_imagen_con_transparencia()
+            imagen.save(ruta_temp)
 
             try:
                 os.startfile(ruta_temp, "print")
@@ -2556,6 +2570,13 @@ class SistemaGestion:
 
             if not id_emp or not self.img_original or proy_sel == "Sin proyectos":
                 messagebox.showwarning("Atención", "ID, Proyecto y foto requeridos.")
+                return
+
+            if not self.path_actual:
+                messagebox.showwarning(
+                    "Atención",
+                    "Guarda la imagen editada antes de guardar la publicidad."
+                )
                 return
 
             if id_pub_editar:
@@ -2605,7 +2626,6 @@ class SistemaGestion:
         boton(fila1, "🗑 ELIMINAR", "#e74c3c", eliminar_imagen)
 
         boton(fila2, "↶ DESHACER", "#7f8c8d", deshacer_cambio)
-        boton(fila2, "🪄 TRANSP.", "#16a085", hacer_transparente)
         boton(fila2, "💾 GUARDAR IMG", "#2ecc71", guardar_imagen_editada, ancho=17)
         boton(fila2, "🖨 IMPRIMIR", "#34495e", imprimir_imagen, ancho=17)
         boton(
