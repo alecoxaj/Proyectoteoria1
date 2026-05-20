@@ -194,8 +194,8 @@ class SistemaGestion:
     def mostrar_soporte(self):
         self.cerrar_menus_usuario()
         messagebox.showinfo(
-            "Soporte Tecnico",
-            "Contactanos al:\n\n"
+            "Soporte Técnico",
+            "Contáctanos al:\n\n"
             "Correo: soporte@espaciocreativo.com\n"
             "Tel: +502 4560-7604, +502 4135-7899, +502 3067-8267"
         )
@@ -655,7 +655,7 @@ class SistemaGestion:
                 return
 
             if not nueva or not confirmar:
-                messagebox.showwarning("Atención", "Complete ambos campos.")
+                messagebox.showwarning("Atención", "Completa ambos campos.")
                 return
 
             if len(nueva) < 4:
@@ -949,64 +949,63 @@ class SistemaGestion:
             ("Registrar Publicidad", "#3498db", "👥", self.ventana_registrar_cliente_formal),
             ("Crear Proyecto", "#2ecc71", "➕", self.ventana_crear_proyecto),
             ("Historial", "#9b59b6", "📋", self.ventana_historial),
-            ("Publicidad", "#f1c40f", "🎨", self.ventana_publicidad_editor),
-            ("Continuar", "#e74c3c", "🚀", self.ventana_continuar_proyecto),
+            ("Continuar pendientes", "#e74c3c", "🚀", self.ventana_continuar_proyecto),
             ("Pagos", "#e67e22", "💰", self.ventana_pagos),
             ("Facturas", "#8e44ad", "📄", self.ventana_facturas),
             ("Portal ID", "#34495e", "🆔", self.ventana_portal_empresa)
         ]
 
-        fila = 0
-        columna = 0
+        columnas_por_fila = 4
 
-        for texto, color, icono, comando in modulos:
-            card = tk.Frame(
-                grid_frame,
-                bg=self.color_card,
-                width=190,
-                height=220,
-                highlightbackground="#f4a261",
-                highlightthickness=2
-            )
-            card.grid(row=fila, column=columna, padx=18, pady=18)
-            card.grid_propagate(False)
+        for inicio in range(0, len(modulos), columnas_por_fila):
+            fila_modulos = modulos[inicio:inicio + columnas_por_fila]
 
-            contenido = tk.Frame(card, bg=self.color_card)
-            contenido.place(relx=0.5, rely=0.5, anchor="center")
+            fila_frame = tk.Frame(grid_frame, bg=self.color_fondo)
+            fila_frame.pack(anchor="center")
 
-            tk.Label(
-                contenido,
-                text=icono,
-                font=("Segoe UI Emoji", 48),
-                fg=color,
-                bg=self.color_card
-            ).pack(pady=(0, 18))
+            for texto, color, icono, comando in fila_modulos:
+                card = tk.Frame(
+                    fila_frame,
+                    bg=self.color_card,
+                    width=190,
+                    height=220,
+                    highlightbackground="#f4a261",
+                    highlightthickness=2
+                )
+                card.pack(side="left", padx=18, pady=18)
+                card.pack_propagate(False)
 
-            tk.Label(
-                contenido,
-                text=texto,
-                font=("Segoe UI", 13, "bold"),
-                fg=self.color_texto,
-                bg=self.color_card
-            ).pack(pady=(0, 22))
+                contenido = tk.Frame(card, bg=self.color_card)
+                contenido.place(relx=0.5, rely=0.5, anchor="center")
 
-            tk.Button(
-                contenido,
-                text="ACCEDER",
-                bg=color,
-                fg="white",
-                font=("Segoe UI", 10, "bold"),
-                bd=0,
-                width=18,
-                height=2,
-                cursor="hand2",
-                command=comando
-            ).pack()
+                tk.Label(
+                    contenido,
+                    text=icono,
+                    font=("Segoe UI Emoji", 48),
+                    fg=color,
+                    bg=self.color_card
+                ).pack(pady=(0, 18))
 
-            columna += 1
-            if columna > 3:
-                columna = 0
-                fila += 1
+                tk.Label(
+                    contenido,
+                    text=texto,
+                    font=("Segoe UI", 13, "bold"),
+                    fg=self.color_texto,
+                    bg=self.color_card
+                ).pack(pady=(0, 22))
+
+                tk.Button(
+                    contenido,
+                    text="ACCEDER",
+                    bg=color,
+                    fg="white",
+                    font=("Segoe UI", 10, "bold"),
+                    bd=0,
+                    width=18,
+                    height=2,
+                    cursor="hand2",
+                    command=comando
+                ).pack()
 
     def ventana_registrar_cliente_formal(self, id_cliente_editar=None):
         v = tk.Toplevel(self.root)
@@ -2221,410 +2220,6 @@ class SistemaGestion:
 
         cargar_datos()
 
-    def ventana_publicidad_editor(self, id_editar=None, id_pub_editar=None):
-        v = tk.Toplevel(self.root)
-        v.title("Editor de Publicidad")
-        v.geometry("1180x820")
-        v.configure(bg="#eef2f5")
-
-        self.img_original = None
-        self.img_tk = None
-        self.path_actual = ""
-        historial_imagenes = []
-
-        header = tk.Frame(v, bg="#243447", height=78)
-        header.pack(side="top", fill="x")
-        header.pack_propagate(False)
-
-        tk.Label(
-            header,
-            text="🎨 Editor de Publicidad",
-            bg="#243447",
-            fg="white",
-            font=("Segoe UI", 21, "bold")
-        ).pack(side="left", padx=(28, 24))
-
-        tk.Label(
-            header,
-            text="Diseño, recorte, transparencia, guardado e impresión",
-            bg="#243447",
-            fg="#dfe6e9",
-            font=("Segoe UI", 10)
-        ).pack(side="left")
-
-        panel_datos = tk.Frame(v, bg="white", pady=12, padx=18)
-        panel_datos.pack(side="top", fill="x", padx=24, pady=(18, 0))
-
-        tk.Label(panel_datos, text="ID Empresa:", bg="white").pack(side="left", padx=(0, 6))
-        ent_uuid = tk.Entry(panel_datos, font=("Consolas", 11), relief="solid", width=16)
-        ent_uuid.pack(side="left", padx=(0, 18), ipady=4)
-
-        tk.Label(panel_datos, text="Proyecto:", bg="white").pack(side="left", padx=(0, 6))
-        cb_proyectos = ttk.Combobox(panel_datos, state="readonly", width=24)
-        cb_proyectos.pack(side="left", padx=(0, 18), ipady=4)
-
-        tk.Label(panel_datos, text="Estado:", bg="white").pack(side="left", padx=(0, 6))
-        cb_estado = ttk.Combobox(
-            panel_datos,
-            values=["Trabajando", "En Espera", "Finalizado"],
-            state="readonly",
-            width=16
-        )
-        cb_estado.current(1)
-        cb_estado.pack(side="left", padx=(0, 18), ipady=4)
-
-        tk.Label(panel_datos, text="Transparencia:", bg="white").pack(side="left", padx=(0, 6))
-        alpha = tk.IntVar(value=100)
-
-        escala_transparencia = tk.Scale(
-            panel_datos,
-            from_=20,
-            to=100,
-            orient="horizontal",
-            variable=alpha,
-            length=170,
-            bg="white",
-            fg="#2c3e50",
-            highlightthickness=0
-        )
-        escala_transparencia.pack(side="left")
-
-        barra = tk.Frame(v, bg="#243447", height=140)
-        barra.pack(side="bottom", fill="x")
-        barra.pack_propagate(False)
-
-        fila1 = tk.Frame(barra, bg="#243447")
-        fila1.pack(pady=(16, 8))
-
-        fila2 = tk.Frame(barra, bg="#243447")
-        fila2.pack()
-
-        cuerpo = tk.Frame(v, bg="#eef2f5")
-        cuerpo.pack(side="top", fill="both", expand=True, padx=24, pady=16)
-
-        visor = tk.Frame(
-            cuerpo,
-            bg="white",
-            padx=18,
-            pady=18,
-            highlightthickness=1,
-            highlightbackground="#d8dee4"
-        )
-        visor.pack(fill="both", expand=True)
-
-        canvas = tk.Canvas(
-            visor,
-            bg="#f8fafc",
-            width=900,
-            height=430,
-            highlightthickness=1,
-            highlightbackground="#d8dee4"
-        )
-        canvas.pack(fill="both", expand=True)
-
-        def guardar_estado():
-            if self.img_original:
-                historial_imagenes.append(self.img_original.copy())
-
-        def obtener_imagen_con_transparencia():
-            if not self.img_original:
-                return None
-
-            imagen = self.img_original.copy().convert("RGBA")
-            factor = alpha.get() / 100
-
-            r, g, b, a = imagen.split()
-            nueva_alpha = a.point(lambda p: int(p * factor))
-            imagen.putalpha(nueva_alpha)
-
-            return imagen
-
-        def actualizar_preview():
-            canvas.delete("all")
-            canvas.update_idletasks()
-
-            ancho = max(canvas.winfo_width(), 900)
-            alto = max(canvas.winfo_height(), 430)
-
-            if self.img_original:
-                img_copy = obtener_imagen_con_transparencia()
-                img_copy.thumbnail((ancho - 40, alto - 40))
-                self.img_tk = ImageTk.PhotoImage(img_copy)
-                canvas.create_image(ancho / 2, alto / 2, image=self.img_tk)
-            else:
-                canvas.create_text(
-                    ancho / 2,
-                    alto / 2 - 25,
-                    text="🖼",
-                    fill="#95a5a6",
-                    font=("Segoe UI Emoji", 58)
-                )
-                canvas.create_text(
-                    ancho / 2,
-                    alto / 2 + 38,
-                    text="Sin imagen cargada",
-                    fill="#7f8c8d",
-                    font=("Segoe UI", 13, "bold")
-                )
-
-        escala_transparencia.configure(command=lambda valor: actualizar_preview())
-
-        def boton(padre, texto, color, comando, ancho=15):
-            tk.Button(
-                padre,
-                text=texto,
-                command=comando,
-                bg=color,
-                fg="white",
-                activebackground=color,
-                activeforeground="white",
-                font=("Segoe UI", 10, "bold"),
-                bd=0,
-                width=ancho,
-                height=2,
-                cursor="hand2"
-            ).pack(side="left", padx=6)
-
-        def cargar_proyectos_de_empresa(event=None):
-            uuid_busqueda = ent_uuid.get().strip()
-
-            proys = self.obtener_lista_db(
-                """
-                SELECT p.nombre
-                FROM proyectos p
-                         JOIN clientes c ON p.id_cliente = c.id_cliente
-                WHERE c.uuid_empresa = ?
-                """,
-                (uuid_busqueda,)
-            )
-
-            lista = [p[0] for p in proys]
-            cb_proyectos["values"] = lista
-
-            if lista:
-                cb_proyectos.current(0)
-            else:
-                cb_proyectos.set("Sin proyectos")
-
-        ent_uuid.bind("<FocusOut>", cargar_proyectos_de_empresa)
-        canvas.bind("<Configure>", lambda e: actualizar_preview())
-
-        if id_editar:
-            ent_uuid.insert(0, id_editar)
-            cargar_proyectos_de_empresa()
-
-        if id_pub_editar:
-            datos = self.obtener_lista_db(
-                """
-                SELECT uuid_empresa, nombre_archivo, estado, proyecto
-                FROM publicidad
-                WHERE id_pub = ?
-                """,
-                (id_pub_editar,)
-            )
-
-            if datos:
-                uuid_emp, archivo, estado, proyecto = datos[0]
-                ent_uuid.insert(0, uuid_emp)
-                cargar_proyectos_de_empresa()
-                cb_estado.set(estado)
-
-                if proyecto:
-                    cb_proyectos.set(proyecto)
-
-                self.path_actual = archivo
-
-                if archivo and os.path.exists(archivo):
-                    self.img_original = Image.open(archivo)
-
-        def cargar_foto():
-            path = filedialog.askopenfilename(
-                filetypes=[("Imágenes", "*.jpg *.png *.jpeg")]
-            )
-
-            if path:
-                self.img_original = Image.open(path)
-                self.path_actual = path
-                alpha.set(100)
-                historial_imagenes.clear()
-                actualizar_preview()
-
-        def eliminar_imagen():
-            if not self.img_original:
-                messagebox.showwarning("Atención", "No hay imagen para eliminar.")
-                return
-
-            confirmar = messagebox.askyesno(
-                "Eliminar imagen",
-                "¿Deseas quitar la imagen cargada del editor?"
-            )
-
-            if not confirmar:
-                return
-
-            guardar_estado()
-            self.img_original = None
-            self.img_tk = None
-            self.path_actual = ""
-            alpha.set(100)
-            actualizar_preview()
-
-        def recortar_centro():
-            if not self.img_original:
-                messagebox.showwarning("Atención", "Primero sube una imagen.")
-                return
-
-            guardar_estado()
-            w, h = self.img_original.size
-            self.img_original = self.img_original.crop(
-                (w * 0.1, h * 0.1, w * 0.9, h * 0.9)
-            )
-            actualizar_preview()
-
-        def convertir_gris():
-            if not self.img_original:
-                messagebox.showwarning("Atención", "Primero sube una imagen.")
-                return
-
-            guardar_estado()
-            self.img_original = ImageOps.grayscale(self.img_original)
-            actualizar_preview()
-
-        def deshacer_cambio():
-            if not historial_imagenes:
-                messagebox.showinfo("Deshacer", "No hay cambios para deshacer.")
-                return
-
-            self.img_original = historial_imagenes.pop()
-            actualizar_preview()
-
-        def editar_existente():
-            seleccionado = self.seleccionar_registro(
-                "Editar publicidad",
-                ("ID", "UUID", "Proyecto", "Estado", "Fecha"),
-                """
-                SELECT id_pub, uuid_empresa, COALESCE(proyecto, ''), estado, fecha
-                FROM publicidad
-                ORDER BY id_pub DESC
-                """
-            )
-
-            if seleccionado:
-                v.destroy()
-                self.ventana_publicidad_editor(id_pub_editar=int(seleccionado[0]))
-
-        def guardar_imagen_editada():
-            if not self.img_original:
-                messagebox.showwarning("Atención", "No hay imagen para guardar.")
-                return
-
-            ruta = filedialog.asksaveasfilename(
-                title="Guardar imagen editada",
-                defaultextension=".png",
-                filetypes=[("PNG con transparencia", "*.png"), ("JPEG", "*.jpg")]
-            )
-
-            if not ruta:
-                return
-
-            imagen = obtener_imagen_con_transparencia()
-
-            if ruta.lower().endswith((".jpg", ".jpeg")):
-                imagen = imagen.convert("RGB")
-
-            imagen.save(ruta)
-            self.path_actual = ruta
-            messagebox.showinfo("Éxito", f"Imagen guardada en:\n{ruta}")
-
-        def imprimir_imagen():
-            if not self.img_original:
-                messagebox.showwarning("Atención", "No hay imagen para imprimir.")
-                return
-
-            ruta_temp = os.path.join(os.path.dirname(self.ruta_db), "publicidad_editada.png")
-            imagen = obtener_imagen_con_transparencia()
-            imagen.save(ruta_temp)
-
-            try:
-                os.startfile(ruta_temp, "print")
-                messagebox.showinfo("Impresión", "Publicidad enviada a imprimir.")
-            except Exception as e:
-                messagebox.showerror("Error", f"No se pudo imprimir:\n{e}\n\nArchivo:\n{ruta_temp}")
-
-        def guardar_db():
-            id_emp = ent_uuid.get().strip()
-            proy_sel = cb_proyectos.get()
-
-            if not id_emp or not self.img_original or proy_sel == "Sin proyectos":
-                messagebox.showwarning("Atención", "ID, Proyecto y foto requeridos.")
-                return
-
-            if not self.path_actual:
-                messagebox.showwarning(
-                    "Atención",
-                    "Guarda la imagen editada antes de guardar la publicidad."
-                )
-                return
-
-            if id_pub_editar:
-                self.ejecutar_db(
-                    """
-                    UPDATE publicidad
-                    SET uuid_empresa=?,
-                        nombre_archivo=?,
-                        estado=?,
-                        fecha=?,
-                        proyecto=?
-                    WHERE id_pub = ?
-                    """,
-                    (
-                        id_emp,
-                        self.path_actual,
-                        cb_estado.get(),
-                        datetime.now().strftime("%d/%m/%Y"),
-                        proy_sel,
-                        id_pub_editar
-                    )
-                )
-                messagebox.showinfo("Éxito", f"Publicidad actualizada para: {proy_sel}")
-            else:
-                self.ejecutar_db(
-                    """
-                    INSERT INTO publicidad
-                        (uuid_empresa, nombre_archivo, estado, fecha, proyecto)
-                    VALUES (?, ?, ?, ?, ?)
-                    """,
-                    (
-                        id_emp,
-                        self.path_actual,
-                        cb_estado.get(),
-                        datetime.now().strftime("%d/%m/%Y"),
-                        proy_sel
-                    )
-                )
-                messagebox.showinfo("Éxito", f"Publicidad guardada para: {proy_sel}")
-
-            v.destroy()
-
-        boton(fila1, "📂 SUBIR", "#1abc9c", cargar_foto)
-        boton(fila1, "✂️ RECORTAR", "#f39c12", recortar_centro)
-        boton(fila1, "🌓 GRIS", "#95a5a6", convertir_gris)
-        boton(fila1, "✏️ EDITAR", "#8e44ad", editar_existente)
-        boton(fila1, "🗑 ELIMINAR", "#e74c3c", eliminar_imagen)
-
-        boton(fila2, "↶ DESHACER", "#7f8c8d", deshacer_cambio)
-        boton(fila2, "💾 GUARDAR IMG", "#2ecc71", guardar_imagen_editada, ancho=17)
-        boton(fila2, "🖨 IMPRIMIR", "#34495e", imprimir_imagen, ancho=17)
-        boton(
-            fila2,
-            "💾 GUARDAR PUBLICIDAD" if not id_pub_editar else "💾 GUARDAR CAMBIOS",
-            "#3498db",
-            guardar_db,
-            ancho=22
-        )
-
-        actualizar_preview()
-
     def ventana_continuar_proyecto(self):
         try:
             conn = sqlite3.connect(self.ruta_db)
@@ -2917,28 +2512,6 @@ class SistemaGestion:
                 buscar()
                 return
 
-        def editar_publicidad():
-            seleccionado = obtener_seleccion()
-
-            if not seleccionado:
-                return
-
-            id_registro, origen, tipo, nombre, estado, fecha, uuid_e = seleccionado
-
-            if origen == "Publicidad":
-                v.destroy()
-                self.ventana_publicidad_editor(id_pub_editar=int(id_registro))
-                return
-
-            if tipo == "Publicidad":
-                v.destroy()
-                self.ventana_publicidad_editor(id_editar=uuid_e)
-                return
-
-            messagebox.showwarning(
-                "Atención",
-                "Para usar este botón, selecciona un proyecto de tipo Publicidad."
-            )
         def ver_finalizado():
             for item in tree.get_children():
                 tree.delete(item)
@@ -3017,7 +2590,6 @@ class SistemaGestion:
             ).pack(side="left", fill="x", expand=True, padx=5)
 
         boton_accion("🚀 Continuar seleccionado", "#e74c3c", continuar_seleccionado)
-        boton_accion("🎨 Editar publicidad", "#f39c12", editar_publicidad)
         boton_accion("👁 Ver proyectos finalizados", "#34495e", ver_finalizado)
         boton_accion("🧹 Limpiar", "#95a5a6", limpiar_busqueda)
 
