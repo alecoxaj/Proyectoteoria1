@@ -1905,13 +1905,19 @@ class SistemaGestion:
         def copiar_id():
             item = tree_clientes.selection()
 
-            if not item:
+            if item:
+                uuid_sel = tree_clientes.item(item[0], "values")[1]
+            else:
+                uuid_sel = ent_id_busq.get().strip()
+
+            if not uuid_sel:
                 messagebox.showwarning("Atención", "Selecciona una empresa.")
                 return
 
-            uuid_sel = tree_clientes.item(item)["values"][1]
             v.clipboard_clear()
             v.clipboard_append(uuid_sel)
+            v.update()
+
             messagebox.showinfo("Copiado", f"ID copiado:\n{uuid_sel}")
 
         def boton_accion(texto, color, comando):
