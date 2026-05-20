@@ -1281,9 +1281,30 @@ class SistemaGestion:
         ).pack(side="left", fill="x", expand=True, padx=(6, 0))
 
     def ventana_crear_proyecto(self, id_proyecto_editar=None):
+        try:
+            conn = sqlite3.connect(self.ruta_db)
+            c = conn.cursor()
+            c.execute("PRAGMA table_info(proyectos)")
+            columnas = [col[1] for col in c.fetchall()]
+
+            if "tipo" not in columnas:
+                c.execute("ALTER TABLE proyectos ADD COLUMN tipo TEXT DEFAULT 'Proyecto'")
+                c.execute("""
+                          UPDATE proyectos
+                          SET tipo='Proyecto'
+                          WHERE tipo IS NULL
+                             OR TRIM(tipo) = ''
+                          """)
+
+            conn.commit()
+            conn.close()
+        except Exception as e:
+            messagebox.showerror("Error", f"No se pudo preparar la tabla proyectos:\n{e}")
+            return
+
         v = tk.Toplevel(self.root)
         v.title("Crear Proyecto")
-        v.geometry("540x650")
+        v.geometry("540x700")
         v.configure(bg="#eef2f5")
         v.resizable(False, False)
 
@@ -1292,9 +1313,9 @@ class SistemaGestion:
         if id_proyecto_editar:
             datos = self.obtener_lista_db(
                 """
-                SELECT id_cliente, nombre, fecha_inicio, estado
+                SELECT id_cliente, nombre, tipo, fecha_inicio, estado
                 FROM proyectos
-                WHERE id_proyecto=?
+                WHERE id_proyecto = ?
                 """,
                 (id_proyecto_editar,)
             )
@@ -1334,7 +1355,7 @@ class SistemaGestion:
 
         tk.Label(
             contenedor,
-            text="Asocia un proyecto a una empresa y define su fecha de inicio y estado.",
+            text="Asocia un proyecto a una empresa y define su tipo, fecha de inicio y estado.",
             bg="white",
             fg="#7f8c8d",
             font=("Segoe UI", 9),
@@ -1386,6 +1407,25 @@ class SistemaGestion:
         etiqueta("Nombre del proyecto:")
         ent_nombre_p = campo()
 
+        etiqueta("Tipo de proyecto:")
+        cb_tipo = ttk.Combobox(
+            contenedor,
+            values=[
+                "Vídeo",
+                "Fotografía",
+                "Publicidad",
+                "Grabación",
+                "Diseño gráfico",
+                "Redes sociales",
+                "Impresión",
+                "Otro"
+            ],
+            state="readonly",
+            font=("Segoe UI", 10)
+        )
+        cb_tipo.current(0)
+        cb_tipo.pack(fill="x", pady=(4, 14), ipady=4)
+
         etiqueta("Fecha de inicio:")
         ent_fecha = DateEntry(
             contenedor,
@@ -1409,7 +1449,7 @@ class SistemaGestion:
         cb_estado.pack(fill="x", pady=(4, 18), ipady=4)
 
         if datos_editar:
-            id_cliente, nombre, fecha, estado = datos_editar
+            id_cliente, nombre, tipo, fecha, estado = datos_editar
 
             for nombre_empresa, id_cli in dict_clientes.items():
                 if id_cli == id_cliente:
@@ -1417,6 +1457,7 @@ class SistemaGestion:
                     break
 
             ent_nombre_p.insert(0, nombre)
+            cb_tipo.set(tipo or "Video")
 
             try:
                 ent_fecha.set_date(datetime.strptime(fecha, "%d/%m/%Y"))
@@ -1431,17 +1472,18 @@ class SistemaGestion:
         def limpiar_campos():
             cb_clientes.set("")
             ent_nombre_p.delete(0, tk.END)
+            cb_tipo.current(0)
             cb_estado.current(0)
             ent_nombre_p.focus()
 
         def editar_existente():
             seleccionado = self.seleccionar_registro(
                 "Editar proyecto",
-                ("ID", "Proyecto", "Empresa", "Estado"),
+                ("ID", "Proyecto", "Tipo", "Empresa", "Estado"),
                 """
-                SELECT p.id_proyecto, p.nombre, c.nombre_empresa, p.estado
+                SELECT p.id_proyecto, p.nombre, COALESCE(p.tipo, 'Proyecto'), c.nombre_empresa, p.estado
                 FROM proyectos p
-                JOIN clientes c ON p.id_cliente = c.id_cliente
+                         JOIN clientes c ON p.id_cliente = c.id_cliente
                 ORDER BY p.id_proyecto DESC
                 """
             )
@@ -1453,6 +1495,7 @@ class SistemaGestion:
         def guardar_proy():
             emp = cb_clientes.get().strip()
             nom = ent_nombre_p.get().strip()
+            tipo = cb_tipo.get().strip()
             estado = cb_estado.get().strip()
             fecha = ent_fecha.get()
 
@@ -1464,17 +1507,26 @@ class SistemaGestion:
                 messagebox.showwarning("Atención", "Ingresa el nombre del proyecto.")
                 return
 
+            if not tipo:
+                messagebox.showwarning("Atención", "Selecciona el tipo de proyecto.")
+                return
+
             try:
                 if id_proyecto_editar:
                     self.ejecutar_db(
                         """
                         UPDATE proyectos
-                        SET id_cliente=?, nombre=?, fecha_inicio=?, estado=?
-                        WHERE id_proyecto=?
+                        SET id_cliente=?,
+                            nombre=?,
+                            tipo=?,
+                            fecha_inicio=?,
+                            estado=?
+                        WHERE id_proyecto = ?
                         """,
                         (
                             dict_clientes[emp],
                             nom,
+                            tipo,
                             fecha,
                             estado,
                             id_proyecto_editar
@@ -1489,12 +1541,13 @@ class SistemaGestion:
                     self.ejecutar_db(
                         """
                         INSERT INTO proyectos
-                        (id_cliente, nombre, fecha_inicio, estado)
-                        VALUES (?, ?, ?, ?)
+                            (id_cliente, nombre, tipo, fecha_inicio, estado)
+                        VALUES (?, ?, ?, ?, ?)
                         """,
                         (
                             dict_clientes[emp],
                             nom,
+                            tipo,
                             fecha,
                             estado
                         )
@@ -2150,276 +2203,167 @@ class SistemaGestion:
         cargar_datos()
 
     def ventana_publicidad_editor(self, id_editar=None, id_pub_editar=None):
-
         v = tk.Toplevel(self.root)
-        v.title("Editor Profesional de Publicidad")
-        v.geometry("1280x820")
-        v.configure(bg="#edf2f7")
-        v.minsize(1180, 760)
+        v.title("Editor de Publicidad")
+        v.geometry("1180x820")
+        v.configure(bg="#eef2f5")
 
         self.img_original = None
         self.img_tk = None
         self.path_actual = ""
-
         historial_imagenes = []
 
-
-        header = tk.Frame(
-            v,
-            bg="#1e293b",
-            height=75
-        )
-
-        header.pack(fill="x")
+        header = tk.Frame(v, bg="#243447", height=78)
+        header.pack(side="top", fill="x")
         header.pack_propagate(False)
 
         tk.Label(
             header,
-            text="🎨 Editor Profesional de Publicidad",
-            bg="#1e293b",
+            text="🎨 Editor de Publicidad",
+            bg="#243447",
             fg="white",
-            font=("Segoe UI", 20, "bold")
-        ).pack(side="left", padx=25)
+            font=("Segoe UI", 21, "bold")
+        ).pack(side="left", padx=(28, 24))
 
         tk.Label(
             header,
-            text="Diseño • Transparencia • Recorte • Impresión",
-            bg="#1e293b",
-            fg="#cbd5e1",
+            text="Diseño, recorte, transparencia, guardado e impresión",
+            bg="#243447",
+            fg="#dfe6e9",
             font=("Segoe UI", 10)
         ).pack(side="left")
 
-        main = tk.Frame(v, bg="#edf2f7")
-        main.pack(fill="both", expand=True, padx=18, pady=18)
+        panel_datos = tk.Frame(v, bg="white", pady=12, padx=18)
+        panel_datos.pack(side="top", fill="x", padx=24, pady=(18, 0))
 
-        panel = tk.Frame(
-            main,
-            bg="white",
-            width=360,
-            padx=16,
-            pady=16,
-            highlightthickness=1,
-            highlightbackground="#dbe2ea"
+        tk.Label(panel_datos, text="ID Empresa:", bg="white").pack(side="left", padx=(0, 6))
+        ent_uuid = tk.Entry(panel_datos, font=("Consolas", 11), relief="solid", width=16)
+        ent_uuid.pack(side="left", padx=(0, 18), ipady=4)
+
+        tk.Label(panel_datos, text="Proyecto:", bg="white").pack(side="left", padx=(0, 6))
+        cb_proyectos = ttk.Combobox(panel_datos, state="readonly", width=24)
+        cb_proyectos.pack(side="left", padx=(0, 18), ipady=4)
+
+        tk.Label(panel_datos, text="Estado:", bg="white").pack(side="left", padx=(0, 6))
+        cb_estado = ttk.Combobox(
+            panel_datos,
+            values=["Trabajando", "En Espera", "Finalizado"],
+            state="readonly",
+            width=16
         )
+        cb_estado.current(1)
+        cb_estado.pack(side="left", padx=(0, 18), ipady=4)
 
-        panel.pack(side="left", fill="y", padx=(0, 16))
-        panel.pack_propagate(False)
+        tk.Label(panel_datos, text="Transparencia:", bg="white").pack(side="left", padx=(0, 6))
+        alpha = tk.IntVar(value=100)
 
-        visor_frame = tk.Frame(
-            main,
+        tk.Scale(
+            panel_datos,
+            from_=20,
+            to=100,
+            orient="horizontal",
+            variable=alpha,
+            length=170,
             bg="white",
-            padx=14,
-            pady=14,
-            highlightthickness=1,
-            highlightbackground="#dbe2ea"
-        )
+            fg="#2c3e50",
+            highlightthickness=0
+        ).pack(side="left")
 
-        visor_frame.pack(side="right", fill="both", expand=True)
+        barra = tk.Frame(v, bg="#243447", height=140)
+        barra.pack(side="bottom", fill="x")
+        barra.pack_propagate(False)
+
+        fila1 = tk.Frame(barra, bg="#243447")
+        fila1.pack(pady=(16, 8))
+
+        fila2 = tk.Frame(barra, bg="#243447")
+        fila2.pack()
+
+        cuerpo = tk.Frame(v, bg="#eef2f5")
+        cuerpo.pack(side="top", fill="both", expand=True, padx=24, pady=16)
+
+        visor = tk.Frame(
+            cuerpo,
+            bg="white",
+            padx=18,
+            pady=18,
+            highlightthickness=1,
+            highlightbackground="#d8dee4"
+        )
+        visor.pack(fill="both", expand=True)
 
         canvas = tk.Canvas(
-            visor_frame,
+            visor,
             bg="#f8fafc",
-            highlightthickness=0
+            width=900,
+            height=430,
+            highlightthickness=1,
+            highlightbackground="#d8dee4"
         )
-
         canvas.pack(fill="both", expand=True)
 
-        def titulo(txt):
+        def guardar_estado():
+            if self.img_original:
+                historial_imagenes.append(self.img_original.copy())
 
-            tk.Label(
-                panel,
-                text=txt,
-                bg="white",
-                fg="#1e293b",
-                font=("Segoe UI", 11, "bold")
-            ).pack(anchor="w", pady=(0, 7))
+        def actualizar_preview():
+            canvas.delete("all")
+            canvas.update_idletasks()
 
-        def separador():
+            ancho = max(canvas.winfo_width(), 900)
+            alto = max(canvas.winfo_height(), 430)
 
-            tk.Frame(
-                panel,
-                bg="#e2e8f0",
-                height=1
-            ).pack(fill="x", pady=12)
+            if self.img_original:
+                img_copy = self.img_original.copy()
+                img_copy.thumbnail((ancho - 40, alto - 40))
+                self.img_tk = ImageTk.PhotoImage(img_copy)
+                canvas.create_image(ancho / 2, alto / 2, image=self.img_tk)
+            else:
+                canvas.create_text(
+                    ancho / 2,
+                    alto / 2 - 25,
+                    text="🖼",
+                    fill="#95a5a6",
+                    font=("Segoe UI Emoji", 58)
+                )
+                canvas.create_text(
+                    ancho / 2,
+                    alto / 2 + 38,
+                    text="Sin imagen cargada",
+                    fill="#7f8c8d",
+                    font=("Segoe UI", 13, "bold")
+                )
 
-        def boton_estilo(master, texto, color, comando):
-
-            return tk.Button(
-                master,
+        def boton(padre, texto, color, comando, ancho=15):
+            tk.Button(
+                padre,
                 text=texto,
                 command=comando,
                 bg=color,
                 fg="white",
                 activebackground=color,
                 activeforeground="white",
-                relief="flat",
+                font=("Segoe UI", 10, "bold"),
                 bd=0,
-                cursor="hand2",
-                font=("Segoe UI", 9, "bold"),
+                width=ancho,
                 height=2,
-                padx=5,
-                pady=2
-            )
-
-        titulo("Datos del trabajo")
-
-        tk.Label(
-            panel,
-            text="UUID Empresa",
-            bg="white",
-            fg="#475569",
-            font=("Segoe UI", 9)
-        ).pack(anchor="w")
-
-        ent_uuid = tk.Entry(
-            panel,
-            font=("Consolas", 10),
-            relief="solid",
-            bd=1
-        )
-
-        ent_uuid.pack(fill="x", pady=(3, 10), ipady=4)
-
-        tk.Label(
-            panel,
-            text="Proyecto",
-            bg="white",
-            fg="#475569",
-            font=("Segoe UI", 9)
-        ).pack(anchor="w")
-
-        cb_proyectos = ttk.Combobox(
-            panel,
-            state="readonly"
-        )
-
-        cb_proyectos.pack(fill="x", pady=(3, 10), ipady=3)
-
-        tk.Label(
-            panel,
-            text="Estado",
-            bg="white",
-            fg="#475569",
-            font=("Segoe UI", 9)
-        ).pack(anchor="w")
-
-        cb_estado = ttk.Combobox(
-            panel,
-            values=[
-                "Trabajando",
-                "En Espera",
-                "Finalizado"
-            ],
-            state="readonly"
-        )
-
-        cb_estado.current(1)
-
-        cb_estado.pack(fill="x", pady=(3, 5), ipady=3)
-
-        separador()
-
-        titulo("Transparencia")
-
-        alpha = tk.IntVar(value=100)
-
-        slider_frame = tk.Frame(
-            panel,
-            bg="white"
-        )
-
-        slider_frame.pack(fill="x")
-
-        tk.Scale(
-            slider_frame,
-            from_=20,
-            to=100,
-            orient="horizontal",
-            variable=alpha,
-            bg="white",
-            fg="#334155",
-            highlightthickness=0,
-            length=285
-        ).pack()
-
-        separador()
-
-        titulo("Herramientas")
-
-        herramientas = tk.Frame(
-            panel,
-            bg="white"
-        )
-
-        herramientas.pack(fill="x")
-
-        for i in range(2):
-            herramientas.grid_columnconfigure(i, weight=1)
-
-        def actualizar_preview():
-
-            canvas.delete("all")
-            canvas.update_idletasks()
-
-            w = canvas.winfo_width()
-            h = canvas.winfo_height()
-
-            if self.img_original:
-
-                img = self.img_original.copy()
-
-                img.thumbnail((w - 40, h - 40))
-
-                self.img_tk = ImageTk.PhotoImage(img)
-
-                canvas.create_image(
-                    w / 2,
-                    h / 2,
-                    image=self.img_tk
-                )
-
-            else:
-
-                canvas.create_text(
-                    w / 2,
-                    h / 2 - 20,
-                    text="🖼",
-                    fill="#94a3b8",
-                    font=("Segoe UI Emoji", 60)
-                )
-
-                canvas.create_text(
-                    w / 2,
-                    h / 2 + 45,
-                    text="Sin imagen cargada",
-                    fill="#64748b",
-                    font=("Segoe UI", 13, "bold")
-                )
-
-        def guardar_estado():
-
-            if self.img_original:
-                historial_imagenes.append(
-                    self.img_original.copy()
-                )
+                cursor="hand2"
+            ).pack(side="left", padx=6)
 
         def cargar_proyectos_de_empresa(event=None):
-
             uuid_busqueda = ent_uuid.get().strip()
 
             proys = self.obtener_lista_db(
                 """
                 SELECT p.nombre
                 FROM proyectos p
-                         JOIN clientes c
-                              ON p.id_cliente = c.id_cliente
+                         JOIN clientes c ON p.id_cliente = c.id_cliente
                 WHERE c.uuid_empresa = ?
                 """,
                 (uuid_busqueda,)
             )
 
             lista = [p[0] for p in proys]
-
             cb_proyectos["values"] = lista
 
             if lista:
@@ -2427,141 +2371,139 @@ class SistemaGestion:
             else:
                 cb_proyectos.set("Sin proyectos")
 
-        def cargar_foto():
+        ent_uuid.bind("<FocusOut>", cargar_proyectos_de_empresa)
+        canvas.bind("<Configure>", lambda e: actualizar_preview())
 
+        if id_editar:
+            ent_uuid.insert(0, id_editar)
+            cargar_proyectos_de_empresa()
+
+        if id_pub_editar:
+            datos = self.obtener_lista_db(
+                """
+                SELECT uuid_empresa, nombre_archivo, estado, proyecto
+                FROM publicidad
+                WHERE id_pub = ?
+                """,
+                (id_pub_editar,)
+            )
+
+            if datos:
+                uuid_emp, archivo, estado, proyecto = datos[0]
+                ent_uuid.insert(0, uuid_emp)
+                cargar_proyectos_de_empresa()
+                cb_estado.set(estado)
+
+                if proyecto:
+                    cb_proyectos.set(proyecto)
+
+                self.path_actual = archivo
+
+                if archivo and os.path.exists(archivo):
+                    self.img_original = Image.open(archivo)
+
+        def cargar_foto():
             path = filedialog.askopenfilename(
-                filetypes=[
-                    ("Imágenes", "*.png *.jpg *.jpeg")
-                ]
+                filetypes=[("Imágenes", "*.jpg *.png *.jpeg")]
             )
 
             if path:
                 self.img_original = Image.open(path)
                 self.path_actual = path
-
                 historial_imagenes.clear()
-
                 actualizar_preview()
 
         def eliminar_imagen():
-
             if not self.img_original:
-                messagebox.showwarning(
-                    "Atención",
-                    "No hay imagen cargada."
-                )
-
+                messagebox.showwarning("Atención", "No hay imagen para eliminar.")
                 return
 
             confirmar = messagebox.askyesno(
-                "Eliminar",
-                "¿Desea eliminar la imagen?"
+                "Eliminar imagen",
+                "¿Deseas quitar la imagen cargada del editor?"
             )
 
             if not confirmar:
                 return
 
+            guardar_estado()
             self.img_original = None
             self.img_tk = None
             self.path_actual = ""
-
-            historial_imagenes.clear()
-
             actualizar_preview()
 
         def recortar_centro():
-
             if not self.img_original:
+                messagebox.showwarning("Atención", "Primero sube una imagen.")
                 return
 
             guardar_estado()
-
             w, h = self.img_original.size
-
             self.img_original = self.img_original.crop(
-                (
-                    w * 0.1,
-                    h * 0.1,
-                    w * 0.9,
-                    h * 0.9
-                )
+                (w * 0.1, h * 0.1, w * 0.9, h * 0.9)
             )
-
             actualizar_preview()
 
         def convertir_gris():
-
             if not self.img_original:
+                messagebox.showwarning("Atención", "Primero sube una imagen.")
                 return
 
             guardar_estado()
-
-            self.img_original = ImageOps.grayscale(
-                self.img_original
-            )
-
+            self.img_original = ImageOps.grayscale(self.img_original)
             actualizar_preview()
 
         def hacer_transparente():
-
             if not self.img_original:
+                messagebox.showwarning("Atención", "Primero sube una imagen.")
                 return
 
-            guardar_estado()
+            try:
+                from PIL import ImageChops
 
-            img = self.img_original.convert("RGBA")
+                v.config(cursor="watch")
+                v.update_idletasks()
+                guardar_estado()
 
-            datos = []
+                img = self.img_original.convert("RGBA")
+                r, g, b, a = img.split()
 
-            for r, g, b, a in img.getdata():
+                mask_r = r.point(lambda p: 255 if p > 235 else 0)
+                mask_g = g.point(lambda p: 255 if p > 235 else 0)
+                mask_b = b.point(lambda p: 255 if p > 235 else 0)
 
-                if r > 235 and g > 235 and b > 235:
+                mascara_blancos = ImageChops.multiply(
+                    ImageChops.multiply(mask_r, mask_g),
+                    mask_b
+                )
 
-                    datos.append(
-                        (255, 255, 255, 0)
-                    )
+                factor = alpha.get() / 100
+                nueva_alpha = a.point(lambda p: int(p * factor))
+                nueva_alpha = ImageChops.subtract(nueva_alpha, mascara_blancos)
 
-                else:
-
-                    datos.append(
-                        (
-                            r,
-                            g,
-                            b,
-                            int(a * (alpha.get() / 100))
-                        )
-                    )
-
-            img.putdata(datos)
-
-            self.img_original = img
-
-            actualizar_preview()
-
-        def deshacer_cambio():
-
-            if historial_imagenes:
-                self.img_original = historial_imagenes.pop()
-
+                img.putalpha(nueva_alpha)
+                self.img_original = img
                 actualizar_preview()
 
-        def editar_existente():
+            except Exception as e:
+                messagebox.showerror("Error", f"No se pudo aplicar transparencia:\n{e}")
+            finally:
+                v.config(cursor="")
 
+        def deshacer_cambio():
+            if not historial_imagenes:
+                messagebox.showinfo("Deshacer", "No hay cambios para deshacer.")
+                return
+
+            self.img_original = historial_imagenes.pop()
+            actualizar_preview()
+
+        def editar_existente():
             seleccionado = self.seleccionar_registro(
                 "Editar publicidad",
-                (
-                    "ID",
-                    "UUID",
-                    "Proyecto",
-                    "Estado",
-                    "Fecha"
-                ),
+                ("ID", "UUID", "Proyecto", "Estado", "Fecha"),
                 """
-                SELECT id_pub,
-                       uuid_empresa,
-                       COALESCE(proyecto, ''),
-                       estado,
-                       fecha
+                SELECT id_pub, uuid_empresa, COALESCE(proyecto, ''), estado, fecha
                 FROM publicidad
                 ORDER BY id_pub DESC
                 """
@@ -2569,52 +2511,54 @@ class SistemaGestion:
 
             if seleccionado:
                 v.destroy()
+                self.ventana_publicidad_editor(id_pub_editar=int(seleccionado[0]))
 
-                self.ventana_publicidad_editor(
-                    id_pub_editar=int(seleccionado[0])
-                )
-
-        def imprimir_imagen():
-
+        def guardar_imagen_editada():
             if not self.img_original:
+                messagebox.showwarning("Atención", "No hay imagen para guardar.")
                 return
 
-            ruta_temp = os.path.join(
-                os.path.dirname(self.ruta_db),
-                "publicidad_temp.png"
+            ruta = filedialog.asksaveasfilename(
+                title="Guardar imagen editada",
+                defaultextension=".png",
+                filetypes=[("PNG con transparencia", "*.png"), ("JPEG", "*.jpg")]
             )
 
+            if not ruta:
+                return
+
+            imagen = self.img_original
+
+            if ruta.lower().endswith((".jpg", ".jpeg")):
+                imagen = imagen.convert("RGB")
+
+            imagen.save(ruta)
+            self.path_actual = ruta
+            messagebox.showinfo("Éxito", f"Imagen guardada en:\n{ruta}")
+
+        def imprimir_imagen():
+            if not self.img_original:
+                messagebox.showwarning("Atención", "No hay imagen para imprimir.")
+                return
+
+            ruta_temp = os.path.join(os.path.dirname(self.ruta_db), "publicidad_editada.png")
             self.img_original.save(ruta_temp)
 
             try:
-
                 os.startfile(ruta_temp, "print")
-
+                messagebox.showinfo("Impresión", "Publicidad enviada a imprimir.")
             except Exception as e:
-
-                messagebox.showerror(
-                    "Error",
-                    str(e)
-                )
+                messagebox.showerror("Error", f"No se pudo imprimir:\n{e}\n\nArchivo:\n{ruta_temp}")
 
         def guardar_db():
-
             id_emp = ent_uuid.get().strip()
             proy_sel = cb_proyectos.get()
 
-            if not id_emp or not self.img_original:
-                messagebox.showwarning(
-                    "Atención",
-                    "Complete los datos requeridos."
-                )
-
+            if not id_emp or not self.img_original or proy_sel == "Sin proyectos":
+                messagebox.showwarning("Atención", "ID, Proyecto y foto requeridos.")
                 return
 
-            if self.img_original and self.path_actual:
-                self.img_original.save(self.path_actual)
-
             if id_pub_editar:
-
                 self.ejecutar_db(
                     """
                     UPDATE publicidad
@@ -2634,17 +2578,12 @@ class SistemaGestion:
                         id_pub_editar
                     )
                 )
-
+                messagebox.showinfo("Éxito", f"Publicidad actualizada para: {proy_sel}")
             else:
-
                 self.ejecutar_db(
                     """
                     INSERT INTO publicidad
-                    (uuid_empresa,
-                     nombre_archivo,
-                     estado,
-                     fecha,
-                     proyecto)
+                        (uuid_empresa, nombre_archivo, estado, fecha, proyecto)
                     VALUES (?, ?, ?, ?, ?)
                     """,
                     (
@@ -2655,135 +2594,52 @@ class SistemaGestion:
                         proy_sel
                     )
                 )
-
-            messagebox.showinfo(
-                "Éxito",
-                "Publicidad guardada correctamente."
-            )
+                messagebox.showinfo("Éxito", f"Publicidad guardada para: {proy_sel}")
 
             v.destroy()
 
-        botones = [
+        boton(fila1, "📂 SUBIR", "#1abc9c", cargar_foto)
+        boton(fila1, "✂️ RECORTAR", "#f39c12", recortar_centro)
+        boton(fila1, "🌓 GRIS", "#95a5a6", convertir_gris)
+        boton(fila1, "✏️ EDITAR", "#8e44ad", editar_existente)
+        boton(fila1, "🗑 ELIMINAR", "#e74c3c", eliminar_imagen)
 
-            ("📂 Subir", "#10b981", cargar_foto),
-            ("🗑 Eliminar", "#ef4444", eliminar_imagen),
-
-            ("✂️ Recortar", "#f59e0b", recortar_centro),
-            ("🌓 Escala gris", "#6b7280", convertir_gris),
-
-            ("🪄 Transparencia", "#14b8a6", hacer_transparente),
-            ("↶ Deshacer", "#64748b", deshacer_cambio),
-
-            ("✏️ Editar", "#8b5cf6", editar_existente),
-            ("✅ Guardar", "#0f766e", guardar_db)
-
-        ]
-
-        fila = 0
-        col = 0
-
-        for texto, color, comando in botones:
-
-            btn = boton_estilo(
-                herramientas,
-                texto,
-                color,
-                comando
-            )
-
-            btn.grid(
-                row=fila,
-                column=col,
-                sticky="ew",
-                padx=4,
-                pady=4
-            )
-
-            col += 1
-
-            if col > 1:
-                col = 0
-                fila += 1
-
-        separador()
-
-        titulo("Acciones")
-
-        acciones = tk.Frame(
-            panel,
-            bg="white"
+        boton(fila2, "↶ DESHACER", "#7f8c8d", deshacer_cambio)
+        boton(fila2, "🪄 TRANSP.", "#16a085", hacer_transparente)
+        boton(fila2, "💾 GUARDAR IMG", "#2ecc71", guardar_imagen_editada, ancho=17)
+        boton(fila2, "🖨 IMPRIMIR", "#34495e", imprimir_imagen, ancho=17)
+        boton(
+            fila2,
+            "💾 GUARDAR PUBLICIDAD" if not id_pub_editar else "💾 GUARDAR CAMBIOS",
+            "#3498db",
+            guardar_db,
+            ancho=22
         )
-
-        acciones.pack(fill="x")
-
-        for i in range(2):
-            acciones.grid_columnconfigure(i, weight=1)
-
-        boton_estilo(
-            acciones,
-            "🖨 Imprimir",
-            "#334155",
-            imprimir_imagen
-        ).grid(
-            row=0,
-            column=0,
-            sticky="ew",
-            padx=4,
-            pady=4
-        )
-
-        ent_uuid.bind(
-            "<FocusOut>",
-            cargar_proyectos_de_empresa
-        )
-
-        canvas.bind(
-            "<Configure>",
-            lambda e: actualizar_preview()
-        )
-
-        if id_editar:
-            ent_uuid.insert(0, id_editar)
-
-            cargar_proyectos_de_empresa()
-
-        if id_pub_editar:
-
-            datos = self.obtener_lista_db(
-                """
-                SELECT uuid_empresa,
-                       nombre_archivo,
-                       estado,
-                       proyecto
-                FROM publicidad
-                WHERE id_pub = ?
-                """,
-                (id_pub_editar,)
-            )
-
-            if datos:
-
-                uuid_emp, archivo, estado, proyecto = datos[0]
-
-                ent_uuid.insert(0, uuid_emp)
-
-                cargar_proyectos_de_empresa()
-
-                cb_estado.set(estado)
-
-                if proyecto:
-                    cb_proyectos.set(proyecto)
-
-                self.path_actual = archivo
-
-                if archivo and os.path.exists(archivo):
-                    self.img_original = Image.open(
-                        archivo
-                    )
 
         actualizar_preview()
 
     def ventana_continuar_proyecto(self):
+        try:
+            conn = sqlite3.connect(self.ruta_db)
+            c = conn.cursor()
+            c.execute("PRAGMA table_info(proyectos)")
+            columnas = [col[1] for col in c.fetchall()]
+
+            if "tipo" not in columnas:
+                c.execute("ALTER TABLE proyectos ADD COLUMN tipo TEXT DEFAULT 'Proyecto'")
+                c.execute("""
+                          UPDATE proyectos
+                          SET tipo='Proyecto'
+                          WHERE tipo IS NULL
+                             OR TRIM(tipo) = ''
+                          """)
+
+            conn.commit()
+            conn.close()
+        except Exception as e:
+            messagebox.showerror("Error", f"No se pudo preparar la tabla proyectos:\n{e}")
+            return
+
         v = tk.Toplevel(self.root)
         v.title("Continuar Proyecto")
         v.geometry("1080x700")
@@ -2877,7 +2733,7 @@ class SistemaGestion:
         tabla_frame = tk.Frame(tabla_card, bg="white")
         tabla_frame.pack(fill="both", expand=True)
 
-        cols = ("ID", "Tipo", "Nombre / Archivo", "Estado", "Fecha", "UUID")
+        cols = ("ID", "Origen", "Tipo", "Nombre / Archivo", "Estado", "Fecha", "UUID")
 
         scroll_y = ttk.Scrollbar(tabla_frame, orient="vertical")
         scroll_x = ttk.Scrollbar(tabla_frame, orient="horizontal")
@@ -2897,7 +2753,8 @@ class SistemaGestion:
             tree.heading(c, text=c)
 
         tree.column("ID", width=0, minwidth=0, stretch=False)
-        tree.column("Tipo", width=120, anchor="center", stretch=False)
+        tree.column("Origen", width=0, minwidth=0, stretch=False)
+        tree.column("Tipo", width=140, anchor="center", stretch=False)
         tree.column("Nombre / Archivo", width=360, anchor="w", stretch=False)
         tree.column("Estado", width=130, anchor="center", stretch=False)
         tree.column("Fecha", width=140, anchor="center", stretch=False)
@@ -2934,21 +2791,47 @@ class SistemaGestion:
 
             proy = self.obtener_lista_db(
                 """
-                SELECT p.id_proyecto, 'Proyecto', p.nombre, p.estado, p.fecha_inicio, c.uuid_empresa
+                SELECT p.id_proyecto,
+                       'Proyecto',
+                       COALESCE(p.tipo, 'Proyecto'),
+                       p.nombre,
+                       p.estado,
+                       p.fecha_inicio,
+                       c.uuid_empresa
                 FROM proyectos p
-                JOIN clientes c ON p.id_cliente = c.id_cliente
-                WHERE c.uuid_empresa LIKE ? OR p.nombre LIKE ? OR c.nombre_empresa LIKE ?
+                         JOIN clientes c ON p.id_cliente = c.id_cliente
+                WHERE c.uuid_empresa LIKE ?
+                   OR p.nombre LIKE ?
+                   OR c.nombre_empresa LIKE ?
+                   OR COALESCE(p.tipo, 'Proyecto') LIKE ?
                 """,
-                (f"%{filtro}%", f"%{filtro}%", f"%{filtro}%")
+                (
+                    f"%{filtro}%",
+                    f"%{filtro}%",
+                    f"%{filtro}%",
+                    f"%{filtro}%"
+                )
             )
 
             pub = self.obtener_lista_db(
                 """
-                SELECT id_pub, 'Publicidad', COALESCE(proyecto, nombre_archivo), estado, fecha, uuid_empresa
+                SELECT id_pub,
+                       'Publicidad',
+                       'Publicidad',
+                       COALESCE(proyecto, nombre_archivo),
+                       estado,
+                       fecha,
+                       uuid_empresa
                 FROM publicidad
-                WHERE uuid_empresa LIKE ? OR nombre_archivo LIKE ? OR proyecto LIKE ?
+                WHERE uuid_empresa LIKE ?
+                   OR nombre_archivo LIKE ?
+                   OR proyecto LIKE ?
                 """,
-                (f"%{filtro}%", f"%{filtro}%", f"%{filtro}%")
+                (
+                    f"%{filtro}%",
+                    f"%{filtro}%",
+                    f"%{filtro}%"
+                )
             )
 
             return proy + pub
@@ -2965,7 +2848,7 @@ class SistemaGestion:
                     "",
                     "end",
                     values=r,
-                    tags=(etiqueta_estado(r[3]),)
+                    tags=(etiqueta_estado(r[4]),)
                 )
 
             lbl_total.config(text=f"{len(resultados)} resultados")
@@ -2985,36 +2868,36 @@ class SistemaGestion:
             if not seleccionado:
                 return
 
-            id_registro, tipo, nombre, estado, fecha, uuid_e = seleccionado
+            id_registro, origen, tipo, nombre, estado, fecha, uuid_e = seleccionado
 
             if estado == "Finalizado":
-                self.mostrar_vista_previa_final(nombre, tipo)
+                self.mostrar_vista_previa_final(nombre, origen)
                 return
 
-            if tipo == "Proyecto":
+            if origen == "Proyecto":
                 self.ejecutar_db(
                     """
                     UPDATE proyectos
                     SET estado=?
-                    WHERE id_proyecto=?
+                    WHERE id_proyecto = ?
                     """,
                     ("Trabajando", id_registro)
                 )
 
                 messagebox.showinfo(
                     "¡Proyecto retomado!",
-                    f"El proyecto '{nombre}' ahora está en estado Trabajando."
+                    f"El proyecto '{nombre}' de tipo '{tipo}' ahora está en estado Trabajando."
                 )
 
                 v.destroy()
                 self.ventana_crear_proyecto(int(id_registro))
 
-            elif tipo == "Publicidad":
+            elif origen == "Publicidad":
                 self.ejecutar_db(
                     """
                     UPDATE publicidad
                     SET estado=?
-                    WHERE id_pub=?
+                    WHERE id_pub = ?
                     """,
                     ("Trabajando", id_registro)
                 )
@@ -3028,37 +2911,53 @@ class SistemaGestion:
             if not seleccionado:
                 return
 
-            id_registro, tipo, nombre, estado, fecha, uuid_e = seleccionado
+            id_registro, origen, tipo, nombre, estado, fecha, uuid_e = seleccionado
 
-            if tipo != "Publicidad":
-                messagebox.showwarning(
-                    "Atención",
-                    "Este botón solo abre registros del tipo Publicidad."
-                )
+            if origen == "Publicidad":
+                v.destroy()
+                self.ventana_publicidad_editor(id_pub_editar=int(id_registro))
                 return
 
-            v.destroy()
-            self.ventana_publicidad_editor(id_pub_editar=int(id_registro))
+            if tipo == "Publicidad":
+                v.destroy()
+                self.ventana_publicidad_editor(id_editar=uuid_e)
+                return
 
+            messagebox.showwarning(
+                "Atención",
+                "Para usar este botón, selecciona un proyecto de tipo Publicidad."
+            )
         def ver_finalizado():
             for item in tree.get_children():
                 tree.delete(item)
 
             proy = self.obtener_lista_db(
                 """
-                SELECT p.id_proyecto, 'Proyecto', p.nombre, p.estado, p.fecha_inicio, c.uuid_empresa
+                SELECT p.id_proyecto,
+                       'Proyecto',
+                       COALESCE(p.tipo, 'Proyecto'),
+                       p.nombre,
+                       p.estado,
+                       p.fecha_inicio,
+                       c.uuid_empresa
                 FROM proyectos p
-                JOIN clientes c ON p.id_cliente = c.id_cliente
-                WHERE p.estado='Finalizado'
+                         JOIN clientes c ON p.id_cliente = c.id_cliente
+                WHERE p.estado = 'Finalizado'
                 ORDER BY p.id_proyecto DESC
                 """
             )
 
             pub = self.obtener_lista_db(
                 """
-                SELECT id_pub, 'Publicidad', COALESCE(proyecto, nombre_archivo), estado, fecha, uuid_empresa
+                SELECT id_pub,
+                       'Publicidad',
+                       'Publicidad',
+                       COALESCE(proyecto, nombre_archivo),
+                       estado,
+                       fecha,
+                       uuid_empresa
                 FROM publicidad
-                WHERE estado='Finalizado'
+                WHERE estado = 'Finalizado'
                 ORDER BY id_pub DESC
                 """
             )
@@ -3107,7 +3006,7 @@ class SistemaGestion:
 
         boton_accion("🚀 Continuar seleccionado", "#e74c3c", continuar_seleccionado)
         boton_accion("🎨 Editar publicidad", "#f39c12", editar_publicidad)
-        boton_accion("👁 Ver finalizados", "#34495e", ver_finalizado)
+        boton_accion("👁 Ver proyectos finalizados", "#34495e", ver_finalizado)
         boton_accion("🧹 Limpiar", "#95a5a6", limpiar_busqueda)
 
         ent_buscar.bind("<KeyRelease>", buscar)
