@@ -1902,24 +1902,6 @@ class SistemaGestion:
             ent_nom_busq.delete(0, tk.END)
             actualizar_tablas()
 
-        def copiar_id():
-            item = tree_clientes.selection()
-
-            if item:
-                uuid_sel = tree_clientes.item(item[0], "values")[1]
-            else:
-                uuid_sel = ent_id_busq.get().strip()
-
-            if not uuid_sel:
-                messagebox.showwarning("Atención", "Selecciona una empresa.")
-                return
-
-            v.clipboard_clear()
-            v.clipboard_append(uuid_sel)
-            v.update()
-
-            messagebox.showinfo("Copiado", f"ID copiado:\n{uuid_sel}")
-
         def boton_accion(texto, color, comando):
             tk.Button(
                 acciones,
@@ -1935,7 +1917,6 @@ class SistemaGestion:
                 cursor="hand2"
             ).pack(side="left", fill="x", expand=True, padx=5)
 
-        boton_accion("📋 Copiar ID", "#34495e", copiar_id)
         boton_accion("🧹 Limpiar filtros", "#95a5a6", limpiar_filtros)
         boton_accion("🔄 Actualizar", "#3498db", actualizar_tablas)
 
