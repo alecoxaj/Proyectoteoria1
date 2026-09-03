@@ -1,0 +1,12 @@
+ESPACIO CREATIVO
+FACTURA / COMPROBANTE DE PAGO
+================================
+No. Factura: FAC-00004
+Empresa: Super del Barrio
+UUID: PUB-9C5F6346
+Proyecto: Creación de redes sociales
+Monto: Q 150.00
+Método de pago: Efectivo
+Fecha: 20/05/2026 09:16
+================================
+Gracias por confiar en Espacio Creativo.

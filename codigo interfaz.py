@@ -2610,8 +2610,7 @@ class SistemaGestion:
         header = tk.Frame(v, bg="#f39c12", height=64)
         header.pack(fill="x")
         header.pack_propagate(False)
-
-
+aaaaaaaaaaaaaaa
 
         tk.Label(
             header,
