@@ -2611,6 +2611,8 @@ class SistemaGestion:
         header.pack(fill="x")
         header.pack_propagate(False)
 
+
+
         tk.Label(
             header,
             text="Mensajes",
@@ -4106,7 +4108,7 @@ class SistemaGestion:
             fg="#7f8c8d",
             font=("Segoe UI", 9, "italic")
         ).pack(pady=8)
-
+ 
     def restaurar_archivo_respaldo(self, ruta_zip):
         base = os.path.dirname(self.ruta_db)
         carpeta_publicidad = os.path.join(base, "publicidad_restaurada")
